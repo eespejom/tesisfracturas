@@ -1,0 +1,899 @@
+---
+title: "GAM AC"
+output: html_document
+date: '2024-01-17'
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Carga de Librerias
+
+```{r}
+# libreria de lectura de bitmaps para bmp, jpeg, png y tiff
+library(readbitmap)
+library(fda)
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(fda.usc)
+```
+
+## A. Sin centrado de los datos
+
+# 2. Cargar los datos funcionales de las imagenes de entrenamiento y crear objeto fd con dichas curvas en base bspline
+
+```{r}
+
+imagenesEntxey <- NULL
+for (j in 1:7) {
+imagenductil <- read.bitmap(paste("DuctilEnt", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenductil <- imagenductil [,,1] # Deja un solo canal
+imagenductilt <- t(imagenductil) 
+imagenductilxey <- rbind(imagenductil,imagenductilt)
+imagenductilxey <- t(imagenductilxey)
+imagenesEntxey <- cbind(imagenesEntxey,imagenductilxey)}
+attributes(imagenesEntxey)
+
+for (j in 1:7) {
+imagenfragil <- read.bitmap(paste("FragilEnt", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenfragil <- imagenfragil [,,1] # Deja un solo canal
+imagenfragilt <- t(imagenfragil) 
+imagenfragilxey <- rbind(imagenfragil,imagenfragilt)
+imagenfragilxey <- t(imagenfragilxey)
+imagenesEntxey <- cbind(imagenesEntxey,imagenfragilxey)}
+attributes(imagenesEntxey)
+
+for (j in 1:7) {
+imagenfatiga <- read.bitmap(paste("FatigaEnt", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenfatiga <- imagenfatiga [,,1] # Deja un solo canal
+imagenfatigat <- t(imagenfatiga) 
+imagenfatigaxey <- rbind(imagenfatiga,imagenfatigat)
+imagenfatigaxey <- t(imagenfatigaxey)
+imagenesEntxey <- cbind(imagenesEntxey,imagenfatigaxey)}
+attributes(imagenesEntxey)
+
+# Convertir en Data Frame Entrenamiento
+imagenesEntxeydf <- as.data.frame (imagenesEntxey)
+attributes(imagenesEntxeydf)
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenesEntxeydf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 150)
+plot(base_bspline)
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenesEntxeydf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothEnt <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothEnt$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+print(log(selected_lamdba, 10))
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothEnt <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothEnt, xlab= "Pixel", ylab = "Intensidad")
+plot(fd_smoothEnt$fd[1], xlab= "Pixel", ylab = "Intensidad")
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedEnt <- fitted(fd_smoothEnt)
+plot(imagenesEntxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedEnt[,1],col="2")
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEnt <- as.factor(c(rep(1,2800), rep(2,2800), rep(3,2800)))
+```
+
+# 3. Cargar los datos funcionales de las imagenes de ensayo y crear objeto fd con dichas curvas en base bspline
+
+```{r}
+
+imagenesEnsxey <- NULL
+for (j in 1:3) {
+imagenductil <- read.bitmap(paste("DuctilEns", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenductil <- imagenductil [,,1] # Deja un solo canal
+imagenductilt <- t(imagenductil) 
+imagenductilxey <- rbind(imagenductil,imagenductilt)
+imagenductilxey <- t(imagenductilxey)
+imagenesEnsxey <- cbind(imagenesEnsxey,imagenductilxey)}
+attributes(imagenesEnsxey)
+
+for (j in 1:3) {
+imagenfragil <- read.bitmap(paste("FragilEns", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenfragil <- imagenfragil [,,1] # Deja un solo canal
+imagenfragilt <- t(imagenfragil) 
+imagenfragilxey <- rbind(imagenfragil,imagenfragilt)
+imagenfragilxey <- t(imagenfragilxey)
+imagenesEnsxey <- cbind(imagenesEnsxey,imagenfragilxey)}
+attributes(imagenesEnsxey)
+
+for (j in 1:3) {
+imagenfatiga <- read.bitmap(paste("FatigaEns", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenfatiga <- imagenfatiga [,,1] # Deja un solo canal
+imagenfatigat <- t(imagenfatiga) 
+imagenfatigaxey <- rbind(imagenfatiga,imagenfatigat)
+imagenfatigaxey <- t(imagenfatigaxey)
+imagenesEnsxey <- cbind(imagenesEnsxey,imagenfatigaxey)}
+attributes(imagenesEnsxey)
+
+# Convertir en Data Frame Ensayo
+imagenesEnsxeydf <- as.data.frame (imagenesEnsxey)
+attributes(imagenesEnsxeydf)
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenesEnsxeydf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 150)
+plot(base_bspline)
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenesEnsxeydf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothEns <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothEns$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+print(log(selected_lamdba, 10))
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothEns <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothEns, xlab= "Pixel", ylab = "Intensidad")
+plot(fd_smoothEns$fd[1], xlab= "Pixel", ylab = "Intensidad")
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedEns <- fitted(fd_smoothEns)
+plot(imagenesEnsxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedEns[,1],col="2")
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEns <- as.factor(c(rep(1,1200), rep(2,1200), rep(3,1200)))
+```
+
+# 4. Datos funcionales de autocorrelacion
+# 4.1 Gráficas de funciones de autocorrelación de dúctil
+
+```{r}
+sapply(1:4, function(i) {
+  acf(imagenesEntxey[,i], lag.max=nrow(imagenesEntxey))
+  })
+```
+
+# 4.2 Gráficas de funciones de autocorrelación de frágil
+
+```{r}
+sapply(2801:2804, function(i) {
+  acf(imagenesEntxey[,i], lag.max=nrow(imagenesEntxey))
+  })
+```
+
+# 4.3 Gráficas de funciones de autocorrelación de fatiga
+
+```{r}
+sapply(5601:5604, function(i) {
+  acf(imagenesEntxey[,i], lag.max=nrow(imagenesEntxey))
+  })
+```
+
+# 4.4 Matrices con autocorrelaciones de cada dato funcional de entrenamiento y prueba
+
+```{r}
+imagenesEntxeyAC <- NULL
+for (i in 1:ncol(imagenesEntxey)) { 
+  AC <- acf(imagenesEntxey[,i], plot = FALSE, lag.max=nrow(imagenesEntxey))
+  imagenesEntxeyAC <- cbind(imagenesEntxeyAC,AC$acf)
+}
+
+imagenesEnsxeyAC <- NULL
+for (i in 1:ncol(imagenesEnsxey)) { 
+  AC <- acf(imagenesEnsxey[,i], plot = FALSE, lag.max=nrow(imagenesEnsxey))
+  imagenesEnsxeyAC <- cbind(imagenesEnsxeyAC,AC$acf)
+}
+
+attributes(imagenesEntxeyAC)
+```
+
+```{r}
+attributes(imagenesEnsxeyAC)
+```
+
+# 4.5 Funciones de autocorrelación como datos funcionales
+
+```{r}
+# Convertir en Data Frame Entrenamiento AC
+imagenesEntxeyACdf <- as.data.frame (imagenesEntxeyAC)
+attributes(imagenesEntxeyACdf)
+
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenesEntxeyACdf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 35)
+plot(base_bspline)
+
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenesEntxeyACdf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothEntAC <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothEntAC$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+
+print(log(selected_lamdba, 10))
+
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothEntAC <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothEntAC, xlab= "Pixel", ylab = "Intensidad")
+
+plot(fd_smoothEntAC$fd[1], xlab= "Pixel", ylab = "Intensidad")
+
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedEntAC <- fitted(fd_smoothEntAC)
+plot(imagenesEntxeyAC[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedEntAC[,1],col="2")
+
+# Convertir en Data Frame Ensayo AC
+imagenesEnsxeyACdf <- as.data.frame (imagenesEnsxeyAC)
+attributes(imagenesEnsxeyACdf)
+
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenesEnsxeyACdf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 35)
+plot(base_bspline)
+
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenesEnsxeyACdf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothEnsAC <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothEnsAC$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+
+print(log(selected_lamdba, 10))
+
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothEnsAC <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothEnsAC, xlab= "Pixel", ylab = "Intensidad")
+
+plot(fd_smoothEnsAC$fd[1], xlab= "Pixel", ylab = "Intensidad")
+
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedEnsAC <- fitted(fd_smoothEnsAC)
+plot(imagenesEnsxeyAC[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedEnsAC[,1],col="2")
+```
+
+# 5. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (familia binomial)
+
+Corre en 2 minutos.
+
+Por Curvas:
+La fracción de acierto global es de 0.6208333, para imágenes dúctiles es de 0.6, para imágenes frágiles de 0.7558333 y para imágenes de fatiga 0.5066667.
+
+Por fotos:
+La fracción de acierto global es de 0.7777,
+
+Dos de tres dúctiles se adjudican a dúctil. Acierto 66%.
+Las tres frágiles se adjudican correctamente. Acierto 100%.
+Dos de tres se adjudican correctamente a fatiga. Acierto 66%.
+
+```{r}
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+fd_smoothEntfdata <- fdata(fd_smoothEnt$fd,1:200) # Se convierte en fdata los datos de entrenamiento fd
+fd_smoothEntACfdata <- fdata(fd_smoothEntAC$fd,1:200) # Se convierte en fdata los datos de entrenamiento fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata, "y"=fd_smoothEntACfdata) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x + y, data = dat, family = binomial()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades e clasificacion
+
+fd_smoothEnsfdata <- fdata(fd_smoothEns$fd,1:200) # Se convierte en fdata los datos de ensayo fd
+fd_smoothEnsACfdata <- fdata(fd_smoothEnsAC$fd,1:200) # Se convierte en fdata los datos de ensayo fd
+newdat<-list("x"=fd_smoothEnsfdata, "y"=fd_smoothEnsACfdata) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenesEntxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenesEnsxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```
+
+# 6. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (Usando datos sin suavizamiento) con familia binomial
+
+Corre en 2 minutos.
+
+La fracción de acierto global es de 0.6252778, para imágenes dúctiles es de 0.8025, para imágenes frágiles de 0.7375 y para imágenes de fatiga 0.3358333.
+
+Por fotos:
+La fracción de acierto global es de 0.6667,
+
+Las tres dúctiles se adjudican a dúctil. Acierto 100%.
+Las tres frágiles se adjudican correctamente. Acierto 100%.
+Ninguna de fatiga se adjudicó correcta. Acierto 0%.
+
+```{r}
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+matrix_data <- as.matrix(imagenesEntxeydf)
+fd_smoothEntfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de entrenamiento fd
+matrix_dataAC <- as.matrix(imagenesEntxeyACdf)
+fd_smoothEntfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de entrenamiento AC fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata, "y"=fd_smoothEntfdataAC) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x + y, data = dat, family = binomial()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades e clasificacion
+
+matrix_data <- as.matrix(imagenesEnsxeydf)
+fd_smoothEnsfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de ensayo fd
+matrix_dataAC <- as.matrix(imagenesEnsxeyACdf)
+fd_smoothEnsfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de ensayo AC fd
+newdat<-list("x"=fd_smoothEnsfdata, "y"=fd_smoothEnsfdataAC) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenesEntxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenesEnsxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```
+
+# 7. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (Usando datos sin suavizamiento) con familia gaussian
+
+Corre en 2 minutos.
+
+La fracción de acierto global es de 0.6316667, para imágenes dúctiles es de 0.8008333, para imágenes frágiles de 0.7658333 y para imágenes de fatiga 0.3283333.
+
+Por fotos:
+La fracción de acierto global es de 0.666,
+
+Las tres dúctiles se adjudican a dúctil. Acierto 100%.
+Las tres frágiles se adjudican correctamente. Acierto 100%.
+Cero de fatiga se adjudicó correcta. Acierto 0%.
+
+```{r}
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+matrix_data <- as.matrix(imagenesEntxeydf)
+fd_smoothEntfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de entrenamiento fd
+matrix_dataAC <- as.matrix(imagenesEntxeyACdf)
+fd_smoothEntfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de entrenamiento AC fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata, "y"=fd_smoothEntfdataAC) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x + y, data = dat, family = gaussian()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades de clasificacion
+
+matrix_data <- as.matrix(imagenesEnsxeydf)
+fd_smoothEnsfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de ensayo fd
+matrix_dataAC <- as.matrix(imagenesEnsxeyACdf)
+fd_smoothEnsfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de ensayo AC fd
+newdat<-list("x"=fd_smoothEnsfdata, "y"=fd_smoothEnsfdataAC) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenesEntxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenesEnsxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```
+
+# 8. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (Usando datos sin suavizamiento) con familia poisson
+
+Corre en 2 minutos.
+
+La fracción de acierto global es de 0.6452778 para imágenes dúctiles es de 0.7491667, para imágenes frágiles de 0.7283333 y para imágenes de fatiga 0.4583333.
+
+Por fotos:
+La fracción de acierto global es de 0.88,
+
+Las tres dúctiles se adjudican a dúctil. Acierto 100%.
+Las tres frágiles se adjudican correctamente. Acierto 100%.
+Dos de tres de fatiga se adjudicó correcta. Acierto 66%.
+
+```{r}
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+matrix_data <- as.matrix(imagenesEntxeydf)
+fd_smoothEntfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de entrenamiento fd
+matrix_dataAC <- as.matrix(imagenesEntxeyACdf)
+fd_smoothEntfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de entrenamiento AC fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata, "y"=fd_smoothEntfdataAC) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x + y, data = dat, family = poisson()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades e clasificacion
+
+matrix_data <- as.matrix(imagenesEnsxeydf)
+fd_smoothEnsfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de ensayo fd
+matrix_dataAC <- as.matrix(imagenesEnsxeyACdf)
+fd_smoothEnsfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de ensayo AC fd
+newdat<-list("x"=fd_smoothEnsfdata, "y"=fd_smoothEnsfdataAC) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenesEntxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenesEnsxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```
+
+# 9. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (Usando datos sin suavizamiento) con familia quasi
+
+Corre en 2 minutos.
+
+La fracción de acierto global es de 0.6316667, para imágenes dúctiles es de 0.8008333, para imágenes frágiles de 0.7658333 y para imágenes de fatiga 0.3283333.
+
+Por fotos:
+La fracción de acierto global es de 0.666,
+
+Las tres dúctiles se adjudican a dúctil. Acierto 100%.
+Las tres frágiles se adjudican correctamente. Acierto 100%.
+Cero de tres de fatiga se adjudicó correcta. Acierto 0%.
+
+```{r}
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+matrix_data <- as.matrix(imagenesEntxeydf)
+fd_smoothEntfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de entrenamiento fd
+matrix_dataAC <- as.matrix(imagenesEntxeyACdf)
+fd_smoothEntfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de entrenamiento AC fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata, "y"=fd_smoothEntfdataAC) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x + y, data = dat, family = quasi()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades e clasificacion
+
+matrix_data <- as.matrix(imagenesEnsxeydf)
+fd_smoothEnsfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de ensayo fd
+matrix_dataAC <- as.matrix(imagenesEnsxeyACdf)
+fd_smoothEnsfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de ensayo AC fd
+newdat<-list("x"=fd_smoothEnsfdata, "y"=fd_smoothEnsfdataAC) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenesEntxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenesEnsxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```
+
+# 10. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (Usando datos sin suavizamiento) con familia quasibinomial
+
+Corre en 2 minutos.
+
+La fracción de acierto global es de 0.6252778, para imágenes dúctiles es de 0.8025, para imágenes frágiles de 0.7375 y para imágenes de fatiga 0.3358333.
+
+Por fotos:
+La fracción de acierto global es de 0.6667,
+
+Las tres dúctiles se adjudican a dúctil. Acierto 100%.
+Las tres frágiles se adjudican correctamente. Acierto 100%.
+Cero de tres de fatiga se adjudicó correcta. Acierto 0%.
+
+```{r}
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+matrix_data <- as.matrix(imagenesEntxeydf)
+fd_smoothEntfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de entrenamiento fd
+matrix_dataAC <- as.matrix(imagenesEntxeyACdf)
+fd_smoothEntfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de entrenamiento AC fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata, "y"=fd_smoothEntfdataAC) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x + y, data = dat, family = quasibinomial()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades e clasificacion
+
+matrix_data <- as.matrix(imagenesEnsxeydf)
+fd_smoothEnsfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de ensayo fd
+matrix_dataAC <- as.matrix(imagenesEnsxeyACdf)
+fd_smoothEnsfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de ensayo AC fd
+newdat<-list("x"=fd_smoothEnsfdata, "y"=fd_smoothEnsfdataAC) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenesEntxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenesEnsxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```
+
+# 11. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (Usando datos sin suavizamiento) con familia quasipoisson
+
+Corre en 2 minutos.
+
+La fracción de acierto global es de 0.6452778, para imágenes dúctiles es de 0.7491667, para imágenes frágiles de 0.7283333 y para imágenes de fatiga 0.4583333.
+
+
+Por fotos:
+La fracción de acierto global es de 0.888,
+
+Las tres dúctiles se adjudican a dúctil. Acierto 100%.
+Las tres frágiles se adjudican correctamente. Acierto 100%.
+Dos de tres de fatiga se adjudicó correcta. Acierto 66%.
+
+```{r}
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+matrix_data <- as.matrix(imagenesEntxeydf)
+fd_smoothEntfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de entrenamiento fd
+matrix_dataAC <- as.matrix(imagenesEntxeyACdf)
+fd_smoothEntfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de entrenamiento AC fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata, "y"=fd_smoothEntfdataAC) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x + y, data = dat, family = quasipoisson()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades e clasificacion
+
+matrix_data <- as.matrix(imagenesEnsxeydf)
+fd_smoothEnsfdata <- fdata(t(matrix_data)) # Se convierte en fdata los datos de ensayo fd
+matrix_dataAC <- as.matrix(imagenesEnsxeyACdf)
+fd_smoothEnsfdataAC <- fdata(t(matrix_dataAC)) # Se convierte en fdata los datos de ensayo AC fd
+newdat<-list("x"=fd_smoothEnsfdata, "y"=fd_smoothEnsfdataAC) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenesEntxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenesEnsxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```
+

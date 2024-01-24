@@ -1,0 +1,673 @@
+---
+title: "Distancias Scores PCA"
+author: "Edgar Espejo"
+date: "2022-12-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Comparación de fotos de los tipos de fracturas
+
+```{r}
+# libreria de lectura de bitmaps para bmp, jpeg, png y tiff
+library(readbitmap)
+library(fda)
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(fda.usc)
+```
+
+
+
+# 1. Cargar imagenes dúctiles
+
+Total de imagenes 10. Por cada foto 400 datos funcionales (lineas de pixeles en X y líneas de pixeles en y), para un total de 4000 datos.
+
+```{r}
+imagenductilent1 <- read.bitmap("DuctilEnt1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent1 <- imagenductilent1 [,,1] # Deja un solo canal
+imagenductilent1t <- t(imagenductilent1) 
+imagenductilent1xey <- rbind(imagenductilent1,imagenductilent1t)
+imagenductilent1xey <- t(imagenductilent1xey)
+dim(imagenductilent1xey)
+
+imagenductilent2 <- read.bitmap("DuctilEnt2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent2 <- imagenductilent2 [,,1] # Deja un solo canal
+imagenductilent2t <- t(imagenductilent2) 
+imagenductilent2xey <- rbind(imagenductilent2,imagenductilent2t)
+imagenductilent2xey <- t(imagenductilent2xey)
+dim(imagenductilent2xey)
+
+imagenductilent3 <- read.bitmap("DuctilEnt3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent3 <- imagenductilent3 [,,1] # Deja un solo canal
+imagenductilent3t <- t(imagenductilent3) 
+imagenductilent3xey <- rbind(imagenductilent3,imagenductilent3t)
+imagenductilent3xey <- t(imagenductilent3xey)
+dim(imagenductilent3xey)
+
+imagenductilent4 <- read.bitmap("DuctilEnt4.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent4 <- imagenductilent4 [,,1] # Deja un solo canal
+imagenductilent4t <- t(imagenductilent4) 
+imagenductilent4xey <- rbind(imagenductilent4,imagenductilent4t)
+imagenductilent4xey <- t(imagenductilent4xey)
+dim(imagenductilent4xey)
+
+imagenductilent5 <- read.bitmap("DuctilEnt5.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent5 <- imagenductilent5 [,,1] # Deja un solo canal
+imagenductilent5t <- t(imagenductilent5) 
+imagenductilent5xey <- rbind(imagenductilent5,imagenductilent5t)
+imagenductilent5xey <- t(imagenductilent5xey)
+dim(imagenductilent5xey)
+
+imagenductilent6 <- read.bitmap("DuctilEnt6.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent6 <- imagenductilent6 [,,1] # Deja un solo canal
+imagenductilent6t <- t(imagenductilent6) 
+imagenductilent6xey <- rbind(imagenductilent6,imagenductilent6t)
+imagenductilent6xey <- t(imagenductilent6xey)
+dim(imagenductilent6xey)
+
+imagenductilent7 <- read.bitmap("DuctilEnt7.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent7 <- imagenductilent7 [,,1] # Deja un solo canal
+imagenductilent7t <- t(imagenductilent7) 
+imagenductilent7xey <- rbind(imagenductilent7,imagenductilent7t)
+imagenductilent7xey <- t(imagenductilent7xey)
+dim(imagenductilent7xey)
+
+imagenductilens1 <- read.bitmap("DuctilEns1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilens1 <- imagenductilens1 [,,1] # Deja un solo canal
+imagenductilens1t <- t(imagenductilens1) 
+imagenductilens1xey <- rbind(imagenductilens1,imagenductilens1t)
+imagenductilens1xey <- t(imagenductilens1xey)
+dim(imagenductilens1xey)
+
+imagenductilens2 <- read.bitmap("DuctilEns2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilens2 <- imagenductilens2 [,,1] # Deja un solo canal
+imagenductilens2t <- t(imagenductilens2) 
+imagenductilens2xey <- rbind(imagenductilens2,imagenductilens2t)
+imagenductilens2xey <- t(imagenductilens2xey)
+dim(imagenductilens2xey)
+
+imagenductilens3 <- read.bitmap("DuctilEns3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilens3 <- imagenductilens3 [,,1] # Deja un solo canal
+imagenductilens3t <- t(imagenductilens3) 
+imagenductilens3xey <- rbind(imagenductilens3,imagenductilens3t)
+imagenductilens3xey <- t(imagenductilens3xey)
+dim(imagenductilens3xey)
+
+imagenductilxey <- cbind(imagenductilent1xey,imagenductilent2xey,imagenductilent3xey,imagenductilent4xey,imagenductilent5xey,imagenductilent6xey,imagenductilent7xey,imagenductilens1xey,imagenductilens2xey,imagenductilens3xey)
+
+dim(imagenductilxey)
+
+```
+
+
+
+
+# 2. Cargar imagenes frágiles
+
+Total de imagenes 10. Por cada foto 400 datos funcionales (lineas de pixeles en X y líneas de pixeles en y), para un total de 4000 datos.
+
+```{r}
+imagenfragilent1 <- read.bitmap("FragilEnt1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent1 <- imagenfragilent1 [,,1] # Deja un solo canal
+imagenfragilent1t <- t(imagenfragilent1) 
+imagenfragilent1xey <- rbind(imagenfragilent1,imagenfragilent1t)
+imagenfragilent1xey <- t(imagenfragilent1xey)
+dim(imagenfragilent1xey)
+
+imagenfragilent2 <- read.bitmap("FragilEnt2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent2 <- imagenfragilent2 [,,1] # Deja un solo canal
+imagenfragilent2t <- t(imagenfragilent2) 
+imagenfragilent2xey <- rbind(imagenfragilent2,imagenfragilent2t)
+imagenfragilent2xey <- t(imagenfragilent2xey)
+dim(imagenfragilent2xey)
+
+imagenfragilent3 <- read.bitmap("FragilEnt3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent3 <- imagenfragilent3 [,,1] # Deja un solo canal
+imagenfragilent3t <- t(imagenfragilent3) 
+imagenfragilent3xey <- rbind(imagenfragilent3,imagenfragilent3t)
+imagenfragilent3xey <- t(imagenfragilent3xey)
+dim(imagenfragilent3xey)
+
+imagenfragilent4 <- read.bitmap("FragilEnt4.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent4 <- imagenfragilent4 [,,1] # Deja un solo canal
+imagenfragilent4t <- t(imagenfragilent4) 
+imagenfragilent4xey <- rbind(imagenfragilent4,imagenfragilent4t)
+imagenfragilent4xey <- t(imagenfragilent4xey)
+dim(imagenfragilent4xey)
+
+imagenfragilent5 <- read.bitmap("FragilEnt5.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent5 <- imagenfragilent5 [,,1] # Deja un solo canal
+imagenfragilent5t <- t(imagenfragilent5) 
+imagenfragilent5xey <- rbind(imagenfragilent5,imagenfragilent5t)
+imagenfragilent5xey <- t(imagenfragilent5xey)
+dim(imagenfragilent5xey)
+
+imagenfragilent6 <- read.bitmap("FragilEnt6.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent6 <- imagenfragilent6 [,,1] # Deja un solo canal
+imagenfragilent6t <- t(imagenfragilent6) 
+imagenfragilent6xey <- rbind(imagenfragilent6,imagenfragilent6t)
+imagenfragilent6xey <- t(imagenfragilent6xey)
+dim(imagenfragilent6xey)
+
+imagenfragilent7 <- read.bitmap("FragilEnt7.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent7 <- imagenfragilent7 [,,1] # Deja un solo canal
+imagenfragilent7t <- t(imagenfragilent7) 
+imagenfragilent7xey <- rbind(imagenfragilent7,imagenfragilent7t)
+imagenfragilent7xey <- t(imagenfragilent7xey)
+dim(imagenfragilent7xey)
+
+imagenfragilens1 <- read.bitmap("FragilEns1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilens1 <- imagenfragilens1 [,,1] # Deja un solo canal
+imagenfragilens1t <- t(imagenfragilens1) 
+imagenfragilens1xey <- rbind(imagenfragilens1,imagenfragilens1t)
+imagenfragilens1xey <- t(imagenfragilens1xey)
+dim(imagenfragilens1xey)
+
+imagenfragilens2 <- read.bitmap("FragilEns2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilens2 <- imagenfragilens2 [,,1] # Deja un solo canal
+imagenfragilens2t <- t(imagenfragilens2) 
+imagenfragilens2xey <- rbind(imagenfragilens2,imagenfragilens2t)
+imagenfragilens2xey <- t(imagenfragilens2xey)
+dim(imagenfragilens2xey)
+
+imagenfragilens3 <- read.bitmap("fragilEns3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilens3 <- imagenfragilens3 [,,1] # Deja un solo canal
+imagenfragilens3t <- t(imagenfragilens3) 
+imagenfragilens3xey <- rbind(imagenfragilens3,imagenfragilens3t)
+imagenfragilens3xey <- t(imagenfragilens3xey)
+dim(imagenfragilens3xey)
+
+imagenfragilxey <- cbind(imagenfragilent1xey,imagenfragilent2xey,imagenfragilent3xey,imagenfragilent4xey,imagenfragilent5xey,imagenfragilent6xey,imagenfragilent7xey,imagenfragilens1xey,imagenfragilens2xey,imagenfragilens3xey)
+
+dim(imagenfragilxey)
+
+
+```
+
+
+
+# 3. Cargar imagenes fatiga
+
+Total de imagenes 10. Por cada foto 400 datos funcionales (lineas de pixeles en X y líneas de pixeles en y), para un total de 4000 datos.
+
+```{r}
+imagenfatigaent1 <- read.bitmap("FatigaEnt1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent1 <- imagenfatigaent1 [,,1] # Deja un solo canal
+imagenfatigaent1t <- t(imagenfatigaent1) 
+imagenfatigaent1xey <- rbind(imagenfatigaent1,imagenfatigaent1t)
+imagenfatigaent1xey <- t(imagenfatigaent1xey)
+dim(imagenfatigaent1xey)
+
+imagenfatigaent2 <- read.bitmap("FatigaEnt2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent2 <- imagenfatigaent2 [,,1] # Deja un solo canal
+imagenfatigaent2t <- t(imagenfatigaent2) 
+imagenfatigaent2xey <- rbind(imagenfatigaent2,imagenfatigaent2t)
+imagenfatigaent2xey <- t(imagenfatigaent2xey)
+dim(imagenfatigaent2xey)
+
+imagenfatigaent3 <- read.bitmap("FatigaEnt3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent3 <- imagenfatigaent3 [,,1] # Deja un solo canal
+imagenfatigaent3t <- t(imagenfatigaent3) 
+imagenfatigaent3xey <- rbind(imagenfatigaent3,imagenfatigaent3t)
+imagenfatigaent3xey <- t(imagenfatigaent3xey)
+dim(imagenfatigaent3xey)
+
+imagenfatigaent4 <- read.bitmap("FatigaEnt4.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent4 <- imagenfatigaent4 [,,1] # Deja un solo canal
+imagenfatigaent4t <- t(imagenfatigaent4) 
+imagenfatigaent4xey <- rbind(imagenfatigaent4,imagenfatigaent4t)
+imagenfatigaent4xey <- t(imagenfatigaent4xey)
+dim(imagenfatigaent4xey)
+
+imagenfatigaent5 <- read.bitmap("FatigaEnt5.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent5 <- imagenfatigaent5 [,,1] # Deja un solo canal
+imagenfatigaent5t <- t(imagenfatigaent5) 
+imagenfatigaent5xey <- rbind(imagenfatigaent5,imagenfatigaent5t)
+imagenfatigaent5xey <- t(imagenfatigaent5xey)
+dim(imagenfatigaent5xey)
+
+imagenfatigaent6 <- read.bitmap("FatigaEnt6.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent6 <- imagenfatigaent6 [,,1] # Deja un solo canal
+imagenfatigaent6t <- t(imagenfatigaent6) 
+imagenfatigaent6xey <- rbind(imagenfatigaent6,imagenfatigaent6t)
+imagenfatigaent6xey <- t(imagenfatigaent6xey)
+dim(imagenfatigaent6xey)
+
+imagenfatigaent7 <- read.bitmap("FatigaEnt7.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent7 <- imagenfatigaent7 [,,1] # Deja un solo canal
+imagenfatigaent7t <- t(imagenfatigaent7) 
+imagenfatigaent7xey <- rbind(imagenfatigaent7,imagenfatigaent7t)
+imagenfatigaent7xey <- t(imagenfatigaent7xey)
+dim(imagenfatigaent7xey)
+
+imagenfatigaens1 <- read.bitmap("FatigaEns1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaens1 <- imagenfatigaens1 [,,1] # Deja un solo canal
+imagenfatigaens1t <- t(imagenfatigaens1) 
+imagenfatigaens1xey <- rbind(imagenfatigaens1,imagenfatigaens1t)
+imagenfatigaens1xey <- t(imagenfatigaens1xey)
+dim(imagenfatigaens1xey)
+
+imagenfatigaens2 <- read.bitmap("FatigaEns2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaens2 <- imagenfatigaens2 [,,1] # Deja un solo canal
+imagenfatigaens2t <- t(imagenfatigaens2) 
+imagenfatigaens2xey <- rbind(imagenfatigaens2,imagenfatigaens2t)
+imagenfatigaens2xey <- t(imagenfatigaens2xey)
+dim(imagenfatigaens2xey)
+
+imagenfatigaens3 <- read.bitmap("FatigaEns3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaens3 <- imagenfatigaens3 [,,1] # Deja un solo canal
+imagenfatigaens3t <- t(imagenfatigaens3) 
+imagenfatigaens3xey <- rbind(imagenfatigaens3,imagenfatigaens3t)
+imagenfatigaens3xey <- t(imagenfatigaens3xey)
+dim(imagenfatigaens3xey)
+
+imagenfatigaxey <- cbind(imagenfatigaent1xey,imagenfatigaent2xey,imagenfatigaent3xey,imagenfatigaent4xey,imagenfatigaent5xey,imagenfatigaent6xey,imagenfatigaent7xey,imagenfatigaens1xey,imagenfatigaens2xey,imagenfatigaens3xey)
+
+dim(imagenfatigaxey)
+
+```
+
+
+
+# 4 Análisis de Componentes Principales de Todas las Curvas en Conjunto
+
+El objetivo es verificar si se forman clusteres por tipo de curvas.
+
+
+# 4.1 Suavizamiento conjunto de curvas dúctil, frágil y fatiga (con 150 B splines)
+
+```{r}
+imagenductilfragilfatigaxey <- cbind(imagenductilxey,imagenfragilxey,imagenfatigaxey)
+# Convertir en Data Frame
+imagenductilfragilfatigaxeydf <- as.data.frame (imagenductilfragilfatigaxey)
+attributes(imagenductilfragilfatigaxeydf)
+
+npuntos <- nrow(imagenductilfragilfatigaxeydf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 150)
+plot(base_bspline)
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenductilfragilfatigaxeydf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothductilfragilfatiga <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothductilfragilfatiga$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+print(log(selected_lamdba, 10))
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothductilfragilfatiga <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothductilfragilfatiga, xlab= "Pixel", ylab = "Intensidad")
+plot(fd_smoothductilfragilfatiga$fd[1], xlab= "Pixel", ylab = "Intensidad")
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedductilfragilfatiga <- fitted(fd_smoothductilfragilfatiga)
+plot(imagenductilfragilfatigaxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,1],col="2")
+```
+
+
+# 4.2 Estimación de PCA y scores de todas las graficas en conjunto con 150 harmonicos (aca variar el numero de armónicos)
+
+Los porcentajes de varianza que recogen las diez primeras funciones principales son: 1.620644e+01 3.280059e+00 2.282260e+00 2.036683e+00 1.953137e+00 1.792502e+00 1.644910e+00 1.640767e+00 1.630118e+00 1.617428e+00. Hasta la funcion propia 82 se acumula el 90.1088% de la varianza. 
+
+```{r}
+
+# Estimación de valores propios, scores y funciones propias para las curvas combinadas de dúctil, frágil y fatiga
+Curvas_Ductil_Fragil_Fatiga.pca<-pca.fd(fd_smoothductilfragilfatiga$fd,nharm=150,harmfdPar = fdPar(fd_smoothductilfragilfatiga$fd))
+# Escoger armonicos en funcion del porcentaje de varianza
+lambda_comb<-Curvas_Ductil_Fragil_Fatiga.pca$values
+# Valores propios
+
+v_comb<-Curvas_Ductil_Fragil_Fatiga.pca$harmonics
+# funciones propias
+
+plot(v_comb[1:3])
+# Visualización primeras tres funciones principales
+
+scores_comb<-Curvas_Ductil_Fragil_Fatiga.pca$scores
+# scores
+
+sum_val_prop <- sum(Curvas_Ductil_Fragil_Fatiga.pca$values)
+# suma de valores propios
+
+Val_prop_percent <- (Curvas_Ductil_Fragil_Fatiga.pca$values/sum_val_prop)*100;Val_prop_percent
+# Porcentaje de la varianza de valores propios
+
+```
+
+# 4.3 Distancias euclidianas en el score 1
+
+Se calculan las distancias euclidianas solo en score 1 de cada curva a la media de cada grupo de entrenamiento. 
+
+```{r}
+
+MeanScore1EntDuctil <- mean(scores_comb[1:2800,1]);MeanScore1EntDuctil
+MeanScore1EntFragil <- mean(scores_comb[4001:6800,1]);MeanScore1EntFragil
+MeanScore1EntFatiga <- mean(scores_comb[8001:10800,1]);MeanScore1EntFatiga
+
+MeanScore1EnsDuctil <- mean(scores_comb[2801:4000,1]);MeanScore1EnsDuctil
+MeanScore1EnsFragil <- mean(scores_comb[6801:8000,1]);MeanScore1EnsFragil
+MeanScore1EnsFatiga <- mean(scores_comb[10801:12000,1]);MeanScore1EnsFatiga
+
+MeanScore1Ent1Ductil <- mean(scores_comb[1:400,1]);MeanScore1Ent1Ductil
+MeanScore1Ent2Ductil <- mean(scores_comb[401:800,1]);MeanScore1Ent2Ductil
+MeanScore1Ent3Ductil <- mean(scores_comb[801:1200,1]);MeanScore1Ent3Ductil
+MeanScore1Ent4Ductil <- mean(scores_comb[1201:1600,1]);MeanScore1Ent4Ductil
+MeanScore1Ent5Ductil <- mean(scores_comb[1601:2000,1]);MeanScore1Ent5Ductil
+MeanScore1Ent6Ductil <- mean(scores_comb[2001:2400,1]);MeanScore1Ent6Ductil
+MeanScore1Ent7Ductil <- mean(scores_comb[2401:2800,1]);MeanScore1Ent7Ductil
+MeanScore1Ens1Ductil <- mean(scores_comb[2801:3200,1]);MeanScore1Ens1Ductil
+MeanScore1Ens2Ductil <- mean(scores_comb[3201:3600,1]);MeanScore1Ens2Ductil
+MeanScore1Ens3Ductil <- mean(scores_comb[2601:4000,1]);MeanScore1Ens3Ductil
+
+MeanScore1Ent1Fragil <- mean(scores_comb[4001:4400,1]);MeanScore1Ent1Fragil
+MeanScore1Ent2Fragil <- mean(scores_comb[4401:4800,1]);MeanScore1Ent2Fragil
+MeanScore1Ent3Fragil <- mean(scores_comb[4801:5200,1]);MeanScore1Ent3Fragil
+MeanScore1Ent4Fragil <- mean(scores_comb[5201:5600,1]);MeanScore1Ent4Fragil
+MeanScore1Ent5Fragil <- mean(scores_comb[5601:6000,1]);MeanScore1Ent5Fragil
+MeanScore1Ent6Fragil <- mean(scores_comb[6001:6400,1]);MeanScore1Ent6Fragil
+MeanScore1Ent7Fragil <- mean(scores_comb[6401:6800,1]);MeanScore1Ent7Fragil
+MeanScore1Ens1Fragil <- mean(scores_comb[6801:7200,1]);MeanScore1Ens1Fragil
+MeanScore1Ens2Fragil <- mean(scores_comb[7201:7600,1]);MeanScore1Ens2Fragil
+MeanScore1Ens3Fragil <- mean(scores_comb[7601:8000,1]);MeanScore1Ens3Fragil
+
+MeanScore1Ent1Fatiga <- mean(scores_comb[8001:8400,1]);MeanScore1Ent1Fatiga
+MeanScore1Ent2Fatiga <- mean(scores_comb[8401:8800,1]);MeanScore1Ent2Fatiga
+MeanScore1Ent3Fatiga <- mean(scores_comb[8801:9200,1]);MeanScore1Ent3Fatiga
+MeanScore1Ent4Fatiga <- mean(scores_comb[9201:9600,1]);MeanScore1Ent4Fatiga
+MeanScore1Ent5Fatiga <- mean(scores_comb[9601:10000,1]);MeanScore1Ent5Fatiga
+MeanScore1Ent6Fatiga <- mean(scores_comb[10001:10400,1]);MeanScore1Ent6Fatiga
+MeanScore1Ent7Fatiga <- mean(scores_comb[10401:10800,1]);MeanScore1Ent7Fatiga
+MeanScore1Ens1Fatiga <- mean(scores_comb[10801:11200,1]);MeanScore1Ens1Fatiga
+MeanScore1Ens2Fatiga <- mean(scores_comb[11201:11600,1]);MeanScore1Ens2Fatiga
+MeanScore1Ens3Fatiga <- mean(scores_comb[11601:12000,1]);MeanScore1Ens3Fatiga
+
+# Distancia en score 1
+
+DistScore1_DuctilEns_a_DuctilENt <- abs(scores_comb[2801:4000,1]-MeanScore1EntDuctil)
+DistScore1_DuctilEns_a_FragilENt <- abs(scores_comb[2801:4000,1]-MeanScore1EntFragil)
+DistScore1_DuctilEns_a_FatigaENt <- abs(scores_comb[2801:4000,1]-MeanScore1EntFatiga)
+
+DistScore1_FragilEns_a_DuctilENt <- abs(scores_comb[6801:8000,1]-MeanScore1EntDuctil)
+DistScore1_FragilEns_a_FragilENt <- abs(scores_comb[6801:8000,1]-MeanScore1EntFragil)
+DistScore1_FragilEns_a_FatigaENt <- abs(scores_comb[6801:8000,1]-MeanScore1EntFatiga)
+
+DistScore1_FatigaEns_a_DuctilENt <- abs(scores_comb[10801:12000,1]-MeanScore1EntDuctil)
+DistScore1_FatigaEns_a_FragilENt <- abs(scores_comb[10801:12000,1]-MeanScore1EntFragil)
+DistScore1_FatigaEns_a_FatigaENt <- abs(scores_comb[10801:12000,1]-MeanScore1EntFatiga)
+
+```
+
+
+# 4.4 Generación tabla de contingencia
+
+La fracción de acierto global es de 0.5980556, para imágenes dúctiles es de 0.7708333, para imágenes frágiles de 0.6591667 y para imágenes de fatiga 0.3641667. 
+
+Por fotos:
+La fracción de acierto global es de 0.777.
+
+Tres de tres dúctiles se adjudican a dúctil. Acierto 100%.
+Tres de tres frágiles se adjudican correctamente. Acierto 100%.
+Uno de tres de fatiga se adjudicó correcta. Acierto 33%.
+
+```{r}
+
+C <- matrix(0,3,3)
+for (i in 1:1200){ if (DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[1,1] <- C[1,1]+1}
+  if (DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_DuctilENt[i] & DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[2,1] <- C[2,1]+1}
+  if (DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_DuctilENt[i]){C[3,1] <- C[3,1]+1}
+  if (DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[1,2] <- C[1,2]+1}
+  if (DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_DuctilENt[i] & DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[2,2] <- C[2,2]+1}
+  if (DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_DuctilENt[i]){C[3,2] <- C[3,2]+1}
+  if (DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[1,3] <- C[1,3]+1}
+  if (DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_DuctilENt[i] & DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[2,3] <- C[2,3]+1}
+  if (DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_DuctilENt[i]){C[3,3] <- C[3,3]+1}
+}
+C
+
+
+sum(diag(C)) /3600 # se determina la fracción de aciertos en la clasificacion
+C[1,1]/1200
+C[2,2]/1200
+C[3,3]/1200
+
+# Matriz para las fotos de ensayo 1
+# La primera columna es para la foto de ensayo ductil, la segunda para la de ensayo frágil y la tercera para fatiga.
+# La fila corresponde a cuál está más cerca: primera fila dúctil, segunda fila frágil y tercera fila fatiga.
+
+C <- matrix(0,3,3)
+for (i in 1:400){ if (DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[1,1] <- C[1,1]+1}
+  if (DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_DuctilENt[i] & DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[2,1] <- C[2,1]+1}
+  if (DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_DuctilENt[i]){C[3,1] <- C[3,1]+1}
+  if (DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[1,2] <- C[1,2]+1}
+  if (DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_DuctilENt[i] & DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[2,2] <- C[2,2]+1}
+  if (DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_DuctilENt[i]){C[3,2] <- C[3,2]+1}
+  if (DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[1,3] <- C[1,3]+1}
+  if (DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_DuctilENt[i] & DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[2,3] <- C[2,3]+1}
+  if (DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_DuctilENt[i]){C[3,3] <- C[3,3]+1}
+}
+C
+
+# Matriz para las fotos de ensayo 2
+# La primera columna es para la foto de ensayo ductil, la segunda para la de ensayo frágil y la tercera para fatiga.
+# La fila corresponde a cuál está más cerca: primera fila dúctil, segunda fila frágil y tercera fila fatiga.
+
+C <- matrix(0,3,3)
+for (i in 401:800){ if (DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[1,1] <- C[1,1]+1}
+  if (DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_DuctilENt[i] & DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[2,1] <- C[2,1]+1}
+  if (DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_DuctilENt[i]){C[3,1] <- C[3,1]+1}
+  if (DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[1,2] <- C[1,2]+1}
+  if (DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_DuctilENt[i] & DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[2,2] <- C[2,2]+1}
+  if (DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_DuctilENt[i]){C[3,2] <- C[3,2]+1}
+  if (DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[1,3] <- C[1,3]+1}
+  if (DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_DuctilENt[i] & DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[2,3] <- C[2,3]+1}
+  if (DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_DuctilENt[i]){C[3,3] <- C[3,3]+1}
+}
+C
+
+# Matriz para las fotos de ensayo 3
+# La primera columna es para la foto de ensayo ductil, la segunda para la de ensayo frágil y la tercera para fatiga.
+# La fila corresponde a cuál está más cerca: primera fila dúctil, segunda fila frágil y tercera fila fatiga.
+
+C <- matrix(0,3,3)
+for (i in 801:1200){ if (DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[1,1] <- C[1,1]+1}
+  if (DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_DuctilENt[i] & DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[2,1] <- C[2,1]+1}
+  if (DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_DuctilENt[i]){C[3,1] <- C[3,1]+1}
+  if (DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[1,2] <- C[1,2]+1}
+  if (DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_DuctilENt[i] & DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[2,2] <- C[2,2]+1}
+  if (DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_DuctilENt[i]){C[3,2] <- C[3,2]+1}
+  if (DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[1,3] <- C[1,3]+1}
+  if (DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_DuctilENt[i] & DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[2,3] <- C[2,3]+1}
+  if (DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_DuctilENt[i]){C[3,3] <- C[3,3]+1}
+}
+C
+```
+
+
+# 4.5 Distancias euclidianas en todos los score
+
+Se calculan las distancias euclidianas con todos los scores de cada curva a la media de cada grupo de entrenamiento. 
+
+```{r}
+
+MeanScoreEntDuctil <- colMeans(scores_comb[1:2800,])
+MeanScoreEntFragil <- colMeans(scores_comb[4001:6800,])
+MeanScoreEntFatiga <- colMeans(scores_comb[8001:10800,])
+
+MeanScoreEnsDuctil <- colMeans(scores_comb[2801:4000,])
+MeanScoreEnsFragil <- colMeans(scores_comb[6801:8000,])
+MeanScoreEnsFatiga <- colMeans(scores_comb[10801:12000,])
+
+
+
+# Distancia euclidiana en score
+
+RestaScore_DuctilEns_a_DuctilENt <- matrix(0,1200,150)
+RestaScore_DuctilEns_a_FragilENt <- matrix(0,1200,150)
+RestaScore_DuctilEns_a_FatigaENt <- matrix(0,1200,150)
+RestaScore_FragilEns_a_DuctilENt <- matrix(0,1200,150)
+RestaScore_FragilEns_a_FragilENt <- matrix(0,1200,150)
+RestaScore_FragilEns_a_FatigaENt <- matrix(0,1200,150)
+RestaScore_FatigaEns_a_DuctilENt <- matrix(0,1200,150)
+RestaScore_FatigaEns_a_FragilENt <- matrix(0,1200,150)
+RestaScore_FatigaEns_a_FatigaENt <- matrix(0,1200,150)
+
+for (i in 2801:4000){RestaScore_DuctilEns_a_DuctilENt[i-2800,] <- scores_comb[i,]-MeanScoreEntDuctil
+                     RestaScore_DuctilEns_a_FragilENt[i-2800,] <- scores_comb[i,]-MeanScoreEntFragil
+                     RestaScore_DuctilEns_a_FatigaENt[i-2800,] <- scores_comb[i,]-MeanScoreEntFatiga}
+
+
+for (i in 6801:8000){RestaScore_FragilEns_a_DuctilENt[i-6800,] <- scores_comb[i,]-MeanScoreEntDuctil
+                     RestaScore_FragilEns_a_FragilENt[i-6800,] <- scores_comb[i,]-MeanScoreEntFragil
+                     RestaScore_FragilEns_a_FatigaENt[i-6800,] <- scores_comb[i,]-MeanScoreEntFatiga}
+
+
+for (i in 10801:12000){RestaScore_FatigaEns_a_DuctilENt[i-10800,] <- scores_comb[i,]-MeanScoreEntDuctil
+                       RestaScore_FatigaEns_a_FragilENt[i-10800,] <- scores_comb[i,]-MeanScoreEntFragil
+                       RestaScore_FatigaEns_a_FatigaENt[i-10800,] <- scores_comb[i,]-MeanScoreEntFatiga}
+
+
+DistScore_DuctilEns_a_DuctilENt <- c(rep(0,1200))
+DistScore_DuctilEns_a_FragilENt <- c(rep(0,1200))
+DistScore_DuctilEns_a_FatigaENt <- c(rep(0,1200))
+DistScore_FragilEns_a_DuctilENt <- c(rep(0,1200))
+DistScore_FragilEns_a_FragilENt <- c(rep(0,1200))
+DistScore_FragilEns_a_FatigaENt <- c(rep(0,1200))
+DistScore_FatigaEns_a_DuctilENt <- c(rep(0,1200))
+DistScore_FatigaEns_a_FragilENt <- c(rep(0,1200))
+DistScore_FatigaEns_a_FatigaENt <- c(rep(0,1200))
+for (i in 1:1200) { DistScore_DuctilEns_a_DuctilENt[i]  <- sqrt((RestaScore_DuctilEns_a_DuctilENt[i,]%*%RestaScore_DuctilEns_a_DuctilENt[i,])^2)
+                    DistScore_DuctilEns_a_FragilENt[i]  <- sqrt((RestaScore_DuctilEns_a_FragilENt[i,]%*%RestaScore_DuctilEns_a_FragilENt[i,])^2)
+                    DistScore_DuctilEns_a_FatigaENt[i]  <- sqrt((RestaScore_DuctilEns_a_FatigaENt[i,]%*%RestaScore_DuctilEns_a_FatigaENt[i,])^2)
+                    DistScore_FragilEns_a_DuctilENt[i]  <- sqrt((RestaScore_FragilEns_a_DuctilENt[i,]%*%RestaScore_FragilEns_a_DuctilENt[i,])^2)
+                    DistScore_FragilEns_a_FragilENt[i]  <- sqrt((RestaScore_FragilEns_a_FragilENt[i,]%*%RestaScore_FragilEns_a_FragilENt[i,])^2)
+                    DistScore_FragilEns_a_FatigaENt[i]  <- sqrt((RestaScore_FragilEns_a_FatigaENt[i,]%*%RestaScore_FragilEns_a_FatigaENt[i,])^2)
+                    DistScore_FatigaEns_a_DuctilENt[i]  <- sqrt((RestaScore_FatigaEns_a_DuctilENt[i,]%*%RestaScore_FatigaEns_a_DuctilENt[i,])^2)
+                    DistScore_FatigaEns_a_FragilENt[i]  <- sqrt((RestaScore_FatigaEns_a_FragilENt[i,]%*%RestaScore_FatigaEns_a_FragilENt[i,])^2)
+                    DistScore_FatigaEns_a_FatigaENt[i]  <- sqrt((RestaScore_FatigaEns_a_FatigaENt[i,]%*%RestaScore_FatigaEns_a_FatigaENt[i,])^2)
+                    }
+
+```
+
+
+# 4.6 Generación tabla de contingencia
+
+La fracción de acierto global es de 0.595, para imágenes dúctiles es de 0.7616667, para imágenes frágiles de 0.6533333 y para imágenes de fatiga 0.37. 
+
+Por fotos:
+La fracción de acierto global es de 0.777.
+
+Tres de tres dúctiles se adjudican a dúctil. Acierto 100%.
+Tres de tres frágiles se adjudican correctamente. Acierto 100%.
+Uno de tres de fatiga se adjudicó correcta. Acierto 33%.
+
+```{r}
+
+C <- matrix(0,3,3)
+for (i in 1:1200){ if (DistScore_DuctilEns_a_DuctilENt[i] < DistScore_DuctilEns_a_FragilENt[i] & DistScore_DuctilEns_a_DuctilENt[i] < DistScore_DuctilEns_a_FatigaENt[i]){C[1,1] <- C[1,1]+1}
+  if (DistScore_DuctilEns_a_FragilENt[i] < DistScore_DuctilEns_a_DuctilENt[i] & DistScore_DuctilEns_a_FragilENt[i] < DistScore_DuctilEns_a_FatigaENt[i]){C[2,1] <- C[2,1]+1}
+  if (DistScore_DuctilEns_a_FatigaENt[i] < DistScore_DuctilEns_a_FragilENt[i] & DistScore_DuctilEns_a_FatigaENt[i] < DistScore_DuctilEns_a_DuctilENt[i]){C[3,1] <- C[3,1]+1}
+  if (DistScore_FragilEns_a_DuctilENt[i] < DistScore_FragilEns_a_FragilENt[i] & DistScore_FragilEns_a_DuctilENt[i] < DistScore_FragilEns_a_FatigaENt[i]){C[1,2] <- C[1,2]+1}
+  if (DistScore_FragilEns_a_FragilENt[i] < DistScore_FragilEns_a_DuctilENt[i] & DistScore_FragilEns_a_FragilENt[i] < DistScore_FragilEns_a_FatigaENt[i]){C[2,2] <- C[2,2]+1}
+  if (DistScore_FragilEns_a_FatigaENt[i] < DistScore_FragilEns_a_FragilENt[i] & DistScore_FragilEns_a_FatigaENt[i] < DistScore_FragilEns_a_DuctilENt[i]){C[3,2] <- C[3,2]+1}
+  if (DistScore_FatigaEns_a_DuctilENt[i] < DistScore_FatigaEns_a_FragilENt[i] & DistScore_FatigaEns_a_DuctilENt[i] < DistScore_FatigaEns_a_FatigaENt[i]){C[1,3] <- C[1,3]+1}
+  if (DistScore_FatigaEns_a_FragilENt[i] < DistScore_FatigaEns_a_DuctilENt[i] & DistScore_FatigaEns_a_FragilENt[i] < DistScore_FatigaEns_a_FatigaENt[i]){C[2,3] <- C[2,3]+1}
+  if (DistScore_FatigaEns_a_FatigaENt[i] < DistScore_FatigaEns_a_FragilENt[i] & DistScore_FatigaEns_a_FatigaENt[i] < DistScore_FatigaEns_a_DuctilENt[i]){C[3,3] <- C[3,3]+1}
+}
+C
+
+sum(diag(C)) /3600 # se determina la fracción de aciertos en la clasificacion
+C[1,1]/1200
+C[2,2]/1200
+C[3,3]/1200
+
+
+# Matriz para las fotos de ensayo 1
+# La primera columna es para la foto de ensayo ductil, la segunda para la de ensayo frágil y la tercera para fatiga.
+# La fila corresponde a cuál está más cerca: primera fila dúctil, segunda fila frágil y tercera fila fatiga.
+
+C <- matrix(0,3,3)
+for (i in 1:400){ if (DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[1,1] <- C[1,1]+1}
+  if (DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_DuctilENt[i] & DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[2,1] <- C[2,1]+1}
+  if (DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_DuctilENt[i]){C[3,1] <- C[3,1]+1}
+  if (DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[1,2] <- C[1,2]+1}
+  if (DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_DuctilENt[i] & DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[2,2] <- C[2,2]+1}
+  if (DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_DuctilENt[i]){C[3,2] <- C[3,2]+1}
+  if (DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[1,3] <- C[1,3]+1}
+  if (DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_DuctilENt[i] & DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[2,3] <- C[2,3]+1}
+  if (DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_DuctilENt[i]){C[3,3] <- C[3,3]+1}
+}
+C
+
+# Matriz para las fotos de ensayo 2
+# La primera columna es para la foto de ensayo ductil, la segunda para la de ensayo frágil y la tercera para fatiga.
+# La fila corresponde a cuál está más cerca: primera fila dúctil, segunda fila frágil y tercera fila fatiga.
+
+C <- matrix(0,3,3)
+for (i in 401:800){ if (DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[1,1] <- C[1,1]+1}
+  if (DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_DuctilENt[i] & DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[2,1] <- C[2,1]+1}
+  if (DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_DuctilENt[i]){C[3,1] <- C[3,1]+1}
+  if (DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[1,2] <- C[1,2]+1}
+  if (DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_DuctilENt[i] & DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[2,2] <- C[2,2]+1}
+  if (DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_DuctilENt[i]){C[3,2] <- C[3,2]+1}
+  if (DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[1,3] <- C[1,3]+1}
+  if (DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_DuctilENt[i] & DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[2,3] <- C[2,3]+1}
+  if (DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_DuctilENt[i]){C[3,3] <- C[3,3]+1}
+}
+C
+
+# Matriz para las fotos de ensayo 3
+# La primera columna es para la foto de ensayo ductil, la segunda para la de ensayo frágil y la tercera para fatiga.
+# La fila corresponde a cuál está más cerca: primera fila dúctil, segunda fila frágil y tercera fila fatiga.
+
+C <- matrix(0,3,3)
+for (i in 801:1200){ if (DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_DuctilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[1,1] <- C[1,1]+1}
+  if (DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_DuctilENt[i] & DistScore1_DuctilEns_a_FragilENt[i] < DistScore1_DuctilEns_a_FatigaENt[i]){C[2,1] <- C[2,1]+1}
+  if (DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_FragilENt[i] & DistScore1_DuctilEns_a_FatigaENt[i] < DistScore1_DuctilEns_a_DuctilENt[i]){C[3,1] <- C[3,1]+1}
+  if (DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_DuctilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[1,2] <- C[1,2]+1}
+  if (DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_DuctilENt[i] & DistScore1_FragilEns_a_FragilENt[i] < DistScore1_FragilEns_a_FatigaENt[i]){C[2,2] <- C[2,2]+1}
+  if (DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_FragilENt[i] & DistScore1_FragilEns_a_FatigaENt[i] < DistScore1_FragilEns_a_DuctilENt[i]){C[3,2] <- C[3,2]+1}
+  if (DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_DuctilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[1,3] <- C[1,3]+1}
+  if (DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_DuctilENt[i] & DistScore1_FatigaEns_a_FragilENt[i] < DistScore1_FatigaEns_a_FatigaENt[i]){C[2,3] <- C[2,3]+1}
+  if (DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_FragilENt[i] & DistScore1_FatigaEns_a_FatigaENt[i] < DistScore1_FatigaEns_a_DuctilENt[i]){C[3,3] <- C[3,3]+1}
+}
+C
+```
+

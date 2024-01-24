@@ -1,0 +1,759 @@
+---
+title: "GAMPCA"
+author: "Edgar Espejo"
+date: "2022-09-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Comparación de fotos de los tipos de fracturas
+
+```{r}
+# libreria de lectura de bitmaps para bmp, jpeg, png y tiff
+library(readbitmap)
+library(fda)
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(fda.usc)
+```
+
+
+
+# 1. Cargar imagenes dúctiles
+
+Total de imagenes 10. Por cada foto 400 datos funcionales (lineas de pixeles en X y líneas de pixeles en y), para un total de 4000 datos.
+
+```{r}
+imagenductilent1 <- read.bitmap("DuctilEnt1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent1 <- imagenductilent1 [,,1] # Deja un solo canal
+imagenductilent1t <- t(imagenductilent1) 
+imagenductilent1xey <- rbind(imagenductilent1,imagenductilent1t)
+imagenductilent1xey <- t(imagenductilent1xey)
+dim(imagenductilent1xey)
+
+imagenductilent2 <- read.bitmap("DuctilEnt2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent2 <- imagenductilent2 [,,1] # Deja un solo canal
+imagenductilent2t <- t(imagenductilent2) 
+imagenductilent2xey <- rbind(imagenductilent2,imagenductilent2t)
+imagenductilent2xey <- t(imagenductilent2xey)
+dim(imagenductilent2xey)
+
+imagenductilent3 <- read.bitmap("DuctilEnt3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent3 <- imagenductilent3 [,,1] # Deja un solo canal
+imagenductilent3t <- t(imagenductilent3) 
+imagenductilent3xey <- rbind(imagenductilent3,imagenductilent3t)
+imagenductilent3xey <- t(imagenductilent3xey)
+dim(imagenductilent3xey)
+
+imagenductilent4 <- read.bitmap("DuctilEnt4.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent4 <- imagenductilent4 [,,1] # Deja un solo canal
+imagenductilent4t <- t(imagenductilent4) 
+imagenductilent4xey <- rbind(imagenductilent4,imagenductilent4t)
+imagenductilent4xey <- t(imagenductilent4xey)
+dim(imagenductilent4xey)
+
+imagenductilent5 <- read.bitmap("DuctilEnt5.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent5 <- imagenductilent5 [,,1] # Deja un solo canal
+imagenductilent5t <- t(imagenductilent5) 
+imagenductilent5xey <- rbind(imagenductilent5,imagenductilent5t)
+imagenductilent5xey <- t(imagenductilent5xey)
+dim(imagenductilent5xey)
+
+imagenductilent6 <- read.bitmap("DuctilEnt6.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent6 <- imagenductilent6 [,,1] # Deja un solo canal
+imagenductilent6t <- t(imagenductilent6) 
+imagenductilent6xey <- rbind(imagenductilent6,imagenductilent6t)
+imagenductilent6xey <- t(imagenductilent6xey)
+dim(imagenductilent6xey)
+
+imagenductilent7 <- read.bitmap("DuctilEnt7.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent7 <- imagenductilent7 [,,1] # Deja un solo canal
+imagenductilent7t <- t(imagenductilent7) 
+imagenductilent7xey <- rbind(imagenductilent7,imagenductilent7t)
+imagenductilent7xey <- t(imagenductilent7xey)
+dim(imagenductilent7xey)
+
+imagenductilens1 <- read.bitmap("DuctilEns1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilens1 <- imagenductilens1 [,,1] # Deja un solo canal
+imagenductilens1t <- t(imagenductilens1) 
+imagenductilens1xey <- rbind(imagenductilens1,imagenductilens1t)
+imagenductilens1xey <- t(imagenductilens1xey)
+dim(imagenductilens1xey)
+
+imagenductilens2 <- read.bitmap("DuctilEns2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilens2 <- imagenductilens2 [,,1] # Deja un solo canal
+imagenductilens2t <- t(imagenductilens2) 
+imagenductilens2xey <- rbind(imagenductilens2,imagenductilens2t)
+imagenductilens2xey <- t(imagenductilens2xey)
+dim(imagenductilens2xey)
+
+imagenductilens3 <- read.bitmap("DuctilEns3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilens3 <- imagenductilens3 [,,1] # Deja un solo canal
+imagenductilens3t <- t(imagenductilens3) 
+imagenductilens3xey <- rbind(imagenductilens3,imagenductilens3t)
+imagenductilens3xey <- t(imagenductilens3xey)
+dim(imagenductilens3xey)
+
+imagenductilxey <- cbind(imagenductilent1xey,imagenductilent2xey,imagenductilent3xey,imagenductilent4xey,imagenductilent5xey,imagenductilent6xey,imagenductilent7xey,imagenductilens1xey,imagenductilens2xey,imagenductilens3xey)
+
+dim(imagenductilxey)
+
+```
+
+
+
+# 2. Cargar imagenes frágiles
+
+Total de imagenes 10. Por cada foto 400 datos funcionales (lineas de pixeles en X y líneas de pixeles en y), para un total de 4000 datos.
+
+```{r}
+imagenfragilent1 <- read.bitmap("FragilEnt1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent1 <- imagenfragilent1 [,,1] # Deja un solo canal
+imagenfragilent1t <- t(imagenfragilent1) 
+imagenfragilent1xey <- rbind(imagenfragilent1,imagenfragilent1t)
+imagenfragilent1xey <- t(imagenfragilent1xey)
+dim(imagenfragilent1xey)
+
+imagenfragilent2 <- read.bitmap("FragilEnt2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent2 <- imagenfragilent2 [,,1] # Deja un solo canal
+imagenfragilent2t <- t(imagenfragilent2) 
+imagenfragilent2xey <- rbind(imagenfragilent2,imagenfragilent2t)
+imagenfragilent2xey <- t(imagenfragilent2xey)
+dim(imagenfragilent2xey)
+
+imagenfragilent3 <- read.bitmap("FragilEnt3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent3 <- imagenfragilent3 [,,1] # Deja un solo canal
+imagenfragilent3t <- t(imagenfragilent3) 
+imagenfragilent3xey <- rbind(imagenfragilent3,imagenfragilent3t)
+imagenfragilent3xey <- t(imagenfragilent3xey)
+dim(imagenfragilent3xey)
+
+imagenfragilent4 <- read.bitmap("FragilEnt4.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent4 <- imagenfragilent4 [,,1] # Deja un solo canal
+imagenfragilent4t <- t(imagenfragilent4) 
+imagenfragilent4xey <- rbind(imagenfragilent4,imagenfragilent4t)
+imagenfragilent4xey <- t(imagenfragilent4xey)
+dim(imagenfragilent4xey)
+
+imagenfragilent5 <- read.bitmap("FragilEnt5.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent5 <- imagenfragilent5 [,,1] # Deja un solo canal
+imagenfragilent5t <- t(imagenfragilent5) 
+imagenfragilent5xey <- rbind(imagenfragilent5,imagenfragilent5t)
+imagenfragilent5xey <- t(imagenfragilent5xey)
+dim(imagenfragilent5xey)
+
+imagenfragilent6 <- read.bitmap("FragilEnt6.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent6 <- imagenfragilent6 [,,1] # Deja un solo canal
+imagenfragilent6t <- t(imagenfragilent6) 
+imagenfragilent6xey <- rbind(imagenfragilent6,imagenfragilent6t)
+imagenfragilent6xey <- t(imagenfragilent6xey)
+dim(imagenfragilent6xey)
+
+imagenfragilent7 <- read.bitmap("FragilEnt7.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent7 <- imagenfragilent7 [,,1] # Deja un solo canal
+imagenfragilent7t <- t(imagenfragilent7) 
+imagenfragilent7xey <- rbind(imagenfragilent7,imagenfragilent7t)
+imagenfragilent7xey <- t(imagenfragilent7xey)
+dim(imagenfragilent7xey)
+
+imagenfragilens1 <- read.bitmap("FragilEns1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilens1 <- imagenfragilens1 [,,1] # Deja un solo canal
+imagenfragilens1t <- t(imagenfragilens1) 
+imagenfragilens1xey <- rbind(imagenfragilens1,imagenfragilens1t)
+imagenfragilens1xey <- t(imagenfragilens1xey)
+dim(imagenfragilens1xey)
+
+imagenfragilens2 <- read.bitmap("FragilEns2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilens2 <- imagenfragilens2 [,,1] # Deja un solo canal
+imagenfragilens2t <- t(imagenfragilens2) 
+imagenfragilens2xey <- rbind(imagenfragilens2,imagenfragilens2t)
+imagenfragilens2xey <- t(imagenfragilens2xey)
+dim(imagenfragilens2xey)
+
+imagenfragilens3 <- read.bitmap("fragilEns3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilens3 <- imagenfragilens3 [,,1] # Deja un solo canal
+imagenfragilens3t <- t(imagenfragilens3) 
+imagenfragilens3xey <- rbind(imagenfragilens3,imagenfragilens3t)
+imagenfragilens3xey <- t(imagenfragilens3xey)
+dim(imagenfragilens3xey)
+
+imagenfragilxey <- cbind(imagenfragilent1xey,imagenfragilent2xey,imagenfragilent3xey,imagenfragilent4xey,imagenfragilent5xey,imagenfragilent6xey,imagenfragilent7xey,imagenfragilens1xey,imagenfragilens2xey,imagenfragilens3xey)
+
+dim(imagenfragilxey)
+
+
+```
+
+
+
+# 3. Cargar imagenes fatiga
+
+Total de imagenes 10. Por cada foto 400 datos funcionales (lineas de pixeles en X y líneas de pixeles en y), para un total de 4000 datos.
+
+```{r}
+imagenfatigaent1 <- read.bitmap("FatigaEnt1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent1 <- imagenfatigaent1 [,,1] # Deja un solo canal
+imagenfatigaent1t <- t(imagenfatigaent1) 
+imagenfatigaent1xey <- rbind(imagenfatigaent1,imagenfatigaent1t)
+imagenfatigaent1xey <- t(imagenfatigaent1xey)
+dim(imagenfatigaent1xey)
+
+imagenfatigaent2 <- read.bitmap("FatigaEnt2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent2 <- imagenfatigaent2 [,,1] # Deja un solo canal
+imagenfatigaent2t <- t(imagenfatigaent2) 
+imagenfatigaent2xey <- rbind(imagenfatigaent2,imagenfatigaent2t)
+imagenfatigaent2xey <- t(imagenfatigaent2xey)
+dim(imagenfatigaent2xey)
+
+imagenfatigaent3 <- read.bitmap("FatigaEnt3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent3 <- imagenfatigaent3 [,,1] # Deja un solo canal
+imagenfatigaent3t <- t(imagenfatigaent3) 
+imagenfatigaent3xey <- rbind(imagenfatigaent3,imagenfatigaent3t)
+imagenfatigaent3xey <- t(imagenfatigaent3xey)
+dim(imagenfatigaent3xey)
+
+imagenfatigaent4 <- read.bitmap("FatigaEnt4.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent4 <- imagenfatigaent4 [,,1] # Deja un solo canal
+imagenfatigaent4t <- t(imagenfatigaent4) 
+imagenfatigaent4xey <- rbind(imagenfatigaent4,imagenfatigaent4t)
+imagenfatigaent4xey <- t(imagenfatigaent4xey)
+dim(imagenfatigaent4xey)
+
+imagenfatigaent5 <- read.bitmap("FatigaEnt5.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent5 <- imagenfatigaent5 [,,1] # Deja un solo canal
+imagenfatigaent5t <- t(imagenfatigaent5) 
+imagenfatigaent5xey <- rbind(imagenfatigaent5,imagenfatigaent5t)
+imagenfatigaent5xey <- t(imagenfatigaent5xey)
+dim(imagenfatigaent5xey)
+
+imagenfatigaent6 <- read.bitmap("FatigaEnt6.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent6 <- imagenfatigaent6 [,,1] # Deja un solo canal
+imagenfatigaent6t <- t(imagenfatigaent6) 
+imagenfatigaent6xey <- rbind(imagenfatigaent6,imagenfatigaent6t)
+imagenfatigaent6xey <- t(imagenfatigaent6xey)
+dim(imagenfatigaent6xey)
+
+imagenfatigaent7 <- read.bitmap("FatigaEnt7.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent7 <- imagenfatigaent7 [,,1] # Deja un solo canal
+imagenfatigaent7t <- t(imagenfatigaent7) 
+imagenfatigaent7xey <- rbind(imagenfatigaent7,imagenfatigaent7t)
+imagenfatigaent7xey <- t(imagenfatigaent7xey)
+dim(imagenfatigaent7xey)
+
+imagenfatigaens1 <- read.bitmap("FatigaEns1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaens1 <- imagenfatigaens1 [,,1] # Deja un solo canal
+imagenfatigaens1t <- t(imagenfatigaens1) 
+imagenfatigaens1xey <- rbind(imagenfatigaens1,imagenfatigaens1t)
+imagenfatigaens1xey <- t(imagenfatigaens1xey)
+dim(imagenfatigaens1xey)
+
+imagenfatigaens2 <- read.bitmap("FatigaEns2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaens2 <- imagenfatigaens2 [,,1] # Deja un solo canal
+imagenfatigaens2t <- t(imagenfatigaens2) 
+imagenfatigaens2xey <- rbind(imagenfatigaens2,imagenfatigaens2t)
+imagenfatigaens2xey <- t(imagenfatigaens2xey)
+dim(imagenfatigaens2xey)
+
+imagenfatigaens3 <- read.bitmap("FatigaEns3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaens3 <- imagenfatigaens3 [,,1] # Deja un solo canal
+imagenfatigaens3t <- t(imagenfatigaens3) 
+imagenfatigaens3xey <- rbind(imagenfatigaens3,imagenfatigaens3t)
+imagenfatigaens3xey <- t(imagenfatigaens3xey)
+dim(imagenfatigaens3xey)
+
+imagenfatigaxey <- cbind(imagenfatigaent1xey,imagenfatigaent2xey,imagenfatigaent3xey,imagenfatigaent4xey,imagenfatigaent5xey,imagenfatigaent6xey,imagenfatigaent7xey,imagenfatigaens1xey,imagenfatigaens2xey,imagenfatigaens3xey)
+
+dim(imagenfatigaxey)
+
+```
+
+
+
+# 4 Análisis de Componentes Principales de Todas las Curvas en Conjunto
+
+El objetivo es verificar si se forman clusteres por tipo de curvas.
+
+
+# 4.1 Suavizamiento conjunto de curvas dúctil, frágil y fatiga
+
+```{r}
+imagenductilfragilfatigaxey <- cbind(imagenductilxey,imagenfragilxey,imagenfatigaxey)
+# Convertir en Data Frame
+imagenductilfragilfatigaxeydf <- as.data.frame (imagenductilfragilfatigaxey)
+attributes(imagenductilfragilfatigaxeydf)
+
+npuntos <- nrow(imagenductilfragilfatigaxeydf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 150)
+plot(base_bspline)
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenductilfragilfatigaxeydf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothductilfragilfatiga <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothductilfragilfatiga$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+print(log(selected_lamdba, 10))
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothductilfragilfatiga <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothductilfragilfatiga, xlab= "Pixel", ylab = "Intensidad")
+plot(fd_smoothductilfragilfatiga$fd[1], xlab= "Pixel", ylab = "Intensidad")
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedductilfragilfatiga <- fitted(fd_smoothductilfragilfatiga)
+plot(imagenductilfragilfatigaxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,1],col="2")
+```
+
+
+# 4.2 Estimación de PCA y scores de todas las graficas en conjunto con 150 harmonicos (aca variar el numero de armónicos)
+
+Los porcentajes de varianza que recogen las diez primeras funciones principales son: 1.620517e+01 3.280065e+00 2.282422e+00 2.036705e+00 1.953267e+00 1.792524e+00 1.645079e+00 1.640718e+00 1.630027e+00 1.617558e+00. Hasta la funcion propia 82 se acumula el 90.10906% de la varianza. 
+
+```{r}
+
+# Estimación de valores propios, scores y funciones propias para las curvas combinadas de dúctil, frágil y fatiga
+Curvas_Ductil_Fragil_Fatiga.pca<-pca.fd(fd_smoothductilfragilfatiga$fd,nharm=150,harmfdPar = fdPar(fd_smoothductilfragilfatiga$fd))
+# Escoger armonicos en funcion del porcentaje de varianza
+lambda_comb<-Curvas_Ductil_Fragil_Fatiga.pca$values
+# Valores propios
+
+v_comb<-Curvas_Ductil_Fragil_Fatiga.pca$harmonics
+# funciones propias
+
+plot(v_comb[1:3])
+# Visualización primeras tres funciones principales
+
+scores_comb<-Curvas_Ductil_Fragil_Fatiga.pca$scores
+# scores
+
+sum_val_prop <- sum(Curvas_Ductil_Fragil_Fatiga.pca$values)
+# suma de valores propios
+
+Val_prop_percent <- (Curvas_Ductil_Fragil_Fatiga.pca$values/sum_val_prop)*100;Val_prop_percent
+# Porcentaje de la varianza de valores propios
+
+```
+
+
+# 4.3 Paso de las curvas a su representación en componentes principales con 150 harmonicos
+
+
+```{r}
+
+Curvas_Ductil_Fragil_Fatiga.EnBasePCA <- reconsCurves(imagenductilfragilfatigaxey,Curvas_Ductil_Fragil_Fatiga.pca)
+plot(Curvas_Ductil_Fragil_Fatiga.EnBasePCA, xlab= "Pixel", ylab = "Intensidad")
+plot(Curvas_Ductil_Fragil_Fatiga.EnBasePCA[1], xlab= "Pixel", ylab = "Intensidad")
+# una curva
+
+# Comparación de curvas originales y suavizadas
+x1 <- seq(1:200)
+fd_fittedductilfragilfatiga <- eval.fd(x1,Curvas_Ductil_Fragil_Fatiga.EnBasePCA)
+plot(imagenductilfragilfatigaxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,1],col="2")
+
+plot(imagenductilfragilfatigaxey[,6000],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,6000],col="2")
+
+plot(imagenductilfragilfatigaxey[,12000],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,12000],col="2")
+
+```
+
+
+# 4.4. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (familia binomial)
+
+Corre en 2 minutos.
+
+La fracción de acierto global es de 0.585, para imágenes dúctiles es de 0.818, para imágenes frágiles de 0.698 y para imágenes de fatiga 0.238.
+
+Por fotos: 
+
+La fracción de acierto global es de 0.777.
+
+Tres de tres dúctiles se adjudican a dúctil. Acierto 100%.
+Tres de tres frágiles se adjudican correctamente. Acierto 100%.
+Uno de tres de fatiga se adjudicó correcta. Acierto 33%.
+
+
+(Dio igual que con base bspline cuando se usan todos los 150 harmonicos). 
+
+```{r}
+
+fd_fittedductilfragilfatiga_t <- t(fd_fittedductilfragilfatiga)
+Curvas_Ent_PCA_Matriz <- rbind(fd_fittedductilfragilfatiga_t[1:2800,],fd_fittedductilfragilfatiga_t[4001:6800,],fd_fittedductilfragilfatiga_t[8001:10800,])
+
+Curvas_Ens_PCA_Matriz <- rbind(fd_fittedductilfragilfatiga_t[2801:4000,],fd_fittedductilfragilfatiga_t[6801:8000,],fd_fittedductilfragilfatiga_t[10801:12000,])
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEnt <- as.factor(c(rep(1,2800), rep(2,2800), rep(3,2800)))
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEns <- as.factor(c(rep(1,1200), rep(2,1200), rep(3,1200)))
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+fd_smoothEntfdata <- fdata(Curvas_Ent_PCA_Matriz,1:200) # Se convierte en fdata los datos de entrenamiento fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x, data = dat, family = binomial()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades e clasificacion
+
+fd_smoothEnsfdata <- fdata(Curvas_Ens_PCA_Matriz,1:200) # Se convierte en fdata los datos de ensayo fd
+newdat<-list("x"=fd_smoothEnsfdata) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenductilfragilfatigaxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenductilfragilfatigaxey[,2801],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```
+
+
+
+
+# 4.5 Estimación de PCA y scores de todas las graficas en conjunto con 1 harmonicos (aca variar el numero de armónicos)
+
+Los porcentajes de varianza que recogen las diez primeras funciones principales son: 1.620517e+01 3.280065e+00 2.282422e+00 2.036705e+00 1.953267e+00 1.792524e+00 1.645079e+00 1.640718e+00 1.630027e+00 1.617558e+00. Hasta la funcion propia 82 se acumula el 90.10906% de la varianza. 
+
+```{r}
+
+# Estimación de valores propios, scores y funciones propias para las curvas combinadas de dúctil, frágil y fatiga
+Curvas_Ductil_Fragil_Fatiga.pca<-pca.fd(fd_smoothductilfragilfatiga$fd,nharm=1,harmfdPar = fdPar(fd_smoothductilfragilfatiga$fd))
+# Escoger armonicos en funcion del porcentaje de varianza
+lambda_comb<-Curvas_Ductil_Fragil_Fatiga.pca$values
+# Valores propios
+
+v_comb<-Curvas_Ductil_Fragil_Fatiga.pca$harmonics
+# funciones propias
+
+plot(v_comb[1:3])
+# Visualización primeras tres funciones principales
+
+scores_comb<-Curvas_Ductil_Fragil_Fatiga.pca$scores
+# scores
+
+sum_val_prop <- sum(Curvas_Ductil_Fragil_Fatiga.pca$values)
+# suma de valores propios
+
+Val_prop_percent <- (Curvas_Ductil_Fragil_Fatiga.pca$values/sum_val_prop)*100;Val_prop_percent
+# Porcentaje de la varianza de valores propios
+
+```
+
+
+# 4.6 Paso de las curvas a su representación en componentes principales con 1 harmonicos
+
+
+```{r}
+
+Curvas_Ductil_Fragil_Fatiga.EnBasePCA <- reconsCurves(imagenductilfragilfatigaxey,Curvas_Ductil_Fragil_Fatiga.pca)
+plot(Curvas_Ductil_Fragil_Fatiga.EnBasePCA, xlab= "Pixel", ylab = "Intensidad")
+plot(Curvas_Ductil_Fragil_Fatiga.EnBasePCA[1], xlab= "Pixel", ylab = "Intensidad")
+# una curva
+
+# Comparación de curvas originales y suavizadas
+x1 <- seq(1:200)
+fd_fittedductilfragilfatiga <- eval.fd(x1,Curvas_Ductil_Fragil_Fatiga.EnBasePCA)
+plot(imagenductilfragilfatigaxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,1],col="2")
+
+plot(imagenductilfragilfatigaxey[,6000],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,6000],col="2")
+
+plot(imagenductilfragilfatigaxey[,12000],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,12000],col="2")
+
+```
+
+
+# 4.7. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (familia binomial)
+
+Corre en 2 minutos.
+
+La fracción de acierto global es de 0.6066667, para imágenes dúctiles es de 0.8741667, para imágenes frágiles de 0.705 y para imágenes de fatiga 0.2408333.
+
+Por fotos: 
+
+La fracción de acierto global es de 0.777.
+
+Tres de tres dúctiles se adjudican a dúctil. Acierto 100%.
+Tres de tres frágiles se adjudican correctamente. Acierto 100%.
+Uno de tres de fatiga se adjudicó correcta. Acierto 33%.
+
+```{r}
+
+fd_fittedductilfragilfatiga_t <- t(fd_fittedductilfragilfatiga)
+Curvas_Ent_PCA_Matriz <- rbind(fd_fittedductilfragilfatiga_t[1:2800,],fd_fittedductilfragilfatiga_t[4001:6800,],fd_fittedductilfragilfatiga_t[8001:10800,])
+
+Curvas_Ens_PCA_Matriz <- rbind(fd_fittedductilfragilfatiga_t[2801:4000,],fd_fittedductilfragilfatiga_t[6801:8000,],fd_fittedductilfragilfatiga_t[10801:12000,])
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEnt <- as.factor(c(rep(1,2800), rep(2,2800), rep(3,2800)))
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEns <- as.factor(c(rep(1,1200), rep(2,1200), rep(3,1200)))
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+fd_smoothEntfdata <- fdata(Curvas_Ent_PCA_Matriz,1:200) # Se convierte en fdata los datos de entrenamiento fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x, data = dat, family = binomial()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades e clasificacion
+
+fd_smoothEnsfdata <- fdata(Curvas_Ens_PCA_Matriz,1:200) # Se convierte en fdata los datos de ensayo fd
+newdat<-list("x"=fd_smoothEnsfdata) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenductilfragilfatigaxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenductilfragilfatigaxey[,2801],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```
+
+
+
+
+
+# 4.8 Estimación de PCA y scores de todas las graficas en conjunto con 2 harmonicos (aca variar el numero de armónicos)
+
+Los porcentajes de varianza que recogen las diez primeras funciones principales son: 1.620517e+01 3.280065e+00 2.282422e+00 2.036705e+00 1.953267e+00 1.792524e+00 1.645079e+00 1.640718e+00 1.630027e+00 1.617558e+00. Hasta la funcion propia 82 se acumula el 90.10906% de la varianza. 
+
+```{r}
+
+# Estimación de valores propios, scores y funciones propias para las curvas combinadas de dúctil, frágil y fatiga
+Curvas_Ductil_Fragil_Fatiga.pca<-pca.fd(fd_smoothductilfragilfatiga$fd,nharm=2,harmfdPar = fdPar(fd_smoothductilfragilfatiga$fd))
+# Escoger armonicos en funcion del porcentaje de varianza
+lambda_comb<-Curvas_Ductil_Fragil_Fatiga.pca$values
+# Valores propios
+
+v_comb<-Curvas_Ductil_Fragil_Fatiga.pca$harmonics
+# funciones propias
+
+plot(v_comb[1:2])
+# Visualización primeras tres funciones principales
+
+scores_comb<-Curvas_Ductil_Fragil_Fatiga.pca$scores
+# scores
+
+sum_val_prop <- sum(Curvas_Ductil_Fragil_Fatiga.pca$values)
+# suma de valores propios
+
+Val_prop_percent <- (Curvas_Ductil_Fragil_Fatiga.pca$values/sum_val_prop)*100;Val_prop_percent
+# Porcentaje de la varianza de valores propios
+
+```
+
+
+# 4.9 Paso de las curvas a su representación en componentes principales con 2 harmonicos
+
+
+```{r}
+
+Curvas_Ductil_Fragil_Fatiga.EnBasePCA <- reconsCurves(imagenductilfragilfatigaxey,Curvas_Ductil_Fragil_Fatiga.pca)
+plot(Curvas_Ductil_Fragil_Fatiga.EnBasePCA, xlab= "Pixel", ylab = "Intensidad")
+plot(Curvas_Ductil_Fragil_Fatiga.EnBasePCA[1], xlab= "Pixel", ylab = "Intensidad")
+# una curva
+
+# Comparación de curvas originales y suavizadas
+x1 <- seq(1:200)
+fd_fittedductilfragilfatiga <- eval.fd(x1,Curvas_Ductil_Fragil_Fatiga.EnBasePCA)
+plot(imagenductilfragilfatigaxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,1],col="2")
+
+plot(imagenductilfragilfatigaxey[,6000],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,6000],col="2")
+
+plot(imagenductilfragilfatigaxey[,12000],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedductilfragilfatiga[,12000],col="2")
+
+```
+
+
+# 4.10. Crear el modelo GAM con los datos de entrenamiento y probarlo con los datos de ensayo (familia binomial)
+
+Corre en 2 minutos.
+
+La fracción de acierto global es de 0.6047222, para imágenes dúctiles es de 0.8608333, para imágenes frágiles de 0.7091667 y para imágenes de fatiga 0.2441667.
+
+Por fotos: 
+
+La fracción de acierto global es de 0.777.
+
+Tres de tres dúctiles se adjudican a dúctil. Acierto 100%.
+Tres de tres frágiles se adjudican correctamente. Acierto 100%.
+Uno de tres de fatiga se adjudicó correcta. Acierto 33%.
+
+
+```{r}
+
+fd_fittedductilfragilfatiga_t <- t(fd_fittedductilfragilfatiga)
+Curvas_Ent_PCA_Matriz <- rbind(fd_fittedductilfragilfatiga_t[1:2800,],fd_fittedductilfragilfatiga_t[4001:6800,],fd_fittedductilfragilfatiga_t[8001:10800,])
+
+Curvas_Ens_PCA_Matriz <- rbind(fd_fittedductilfragilfatiga_t[2801:4000,],fd_fittedductilfragilfatiga_t[6801:8000,],fd_fittedductilfragilfatiga_t[10801:12000,])
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEnt <- as.factor(c(rep(1,2800), rep(2,2800), rep(3,2800)))
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEns <- as.factor(c(rep(1,1200), rep(2,1200), rep(3,1200)))
+
+CatEntDF<-data.frame(CatEnt) # se convierten en data frame las categorias de las curvas de entrenamiento
+fd_smoothEntfdata <- fdata(Curvas_Ent_PCA_Matriz,1:200) # Se convierte en fdata los datos de entrenamiento fd
+dat=list("df"=CatEntDF,"x"=fd_smoothEntfdata) # se crea la lista con las categorias de las curvas de entrenamiento y los datos funciones de entrenamiento
+a1<-classif.gsam(CatEnt~x, data = dat, family = binomial()) # Se obtienen los parametros de GAM, dentro del objeto estan las probabilidades e clasificacion
+
+fd_smoothEnsfdata <- fdata(Curvas_Ens_PCA_Matriz,1:200) # Se convierte en fdata los datos de ensayo fd
+newdat<-list("x"=fd_smoothEnsfdata) # se asignan las curvas de ensayo como una lista 
+p1<-predict(a1,newdat) # se hace la predicción de la categoria de las curvas de ensayo de acuerdo al modelo GLM, el objeto entregado es un factor
+table(CatEns,p1) # genera tabla de contingencia donde se puede ver la coincidencia entre la categoria conocida y la predicha por el modelo
+t <- table(CatEns,p1)
+sum(p1==CatEns)/3600 # se determina la fracción de aciertos en la clasificacion
+t[1,1]/1200
+t[2,2]/1200
+t[3,3]/1200
+
+
+Fductil <- matrix(0,3,3)
+Fductil[1,1] <- sum(p1[1:400]==1); Fductil[1,2] <- sum(p1[1:400]==2); Fductil[1,3] <- sum(p1[1:400]==3)
+Fductil[2,1] <- sum(p1[401:800]==1); Fductil[2,2] <- sum(p1[401:800]==2); Fductil[2,3] <- sum(p1[401:800]==3)
+Fductil[3,1] <- sum(p1[801:1200]==1); Fductil[3,2] <- sum(p1[801:1200]==2); Fductil[3,3] <- sum(p1[801:1200]==3)
+Fductil
+# Clasificacion por fotos dúctiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffragil <- matrix(0,3,3)
+Ffragil[1,1] <- sum(p1[1201:1600]==1); Ffragil[1,2] <- sum(p1[1201:1600]==2); Ffragil[1,3] <- sum(p1[1201:1600]==3)
+Ffragil[2,1] <- sum(p1[1601:2000]==1); Ffragil[2,2] <- sum(p1[1601:2000]==2); Ffragil[2,3] <- sum(p1[1601:2000]==3)
+Ffragil[3,1] <- sum(p1[2001:2400]==1); Ffragil[3,2] <- sum(p1[2001:2400]==2); Ffragil[3,3] <- sum(p1[2001:2400]==3)
+Ffragil
+# Clasificacion por fotos frágiles. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+Ffatiga <- matrix(0,3,3)
+Ffatiga[1,1] <- sum(p1[2401:2800]==1); Ffatiga[1,2] <- sum(p1[2401:2800]==2); Ffatiga[1,3] <- sum(p1[2401:2800]==3)
+Ffatiga[2,1] <- sum(p1[2801:3200]==1); Ffatiga[2,2] <- sum(p1[2801:3200]==2); Ffatiga[2,3] <- sum(p1[2801:3200]==3)
+Ffatiga[3,1] <- sum(p1[3201:3600]==1); Ffatiga[3,2] <- sum(p1[3201:3600]==2); Ffatiga[3,3] <- sum(p1[3201:3600]==3)
+Ffatiga
+# Clasificacion por fotos de fatiga. Cada fila es una fotos de ensayo y cada columna contador de clasificación en columna 1 dúctil, en 2 frágil y en 3 fatiga
+
+
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ent
+plot(imagenductilfragilfatigaxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEnt[,1],col="2")
+lines(fd_smoothEntfdata$data[1,],col="3")
+
+# Comparación de curvas originales y suavizadas pasadas a fdata Ens
+plot(imagenductilfragilfatigaxey[,2801],type = "o",xlab="Pixel",ylab="Intensidad")
+#lines(fd_fittedEns[,1],col="2")
+lines(fd_smoothEnsfdata$data[1,],col="3")
+
+```

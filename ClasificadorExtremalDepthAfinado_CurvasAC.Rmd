@@ -1,0 +1,637 @@
+YYes---
+title: "Clasificador Extremal Depth"
+author: "Edgar Espejo Mora"
+date: "3/09/2023"
+output:
+  html_document:
+    df_print: paged
+  pdf_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Packages.
+```{r include = TRUE}
+library(readbitmap)
+library(fda)
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(fda.usc)
+library(fdaoutlier)
+# Carga de las librerías necesarias
+```
+
+## Sin centrado de los datos
+
+# 1. Cargar los datos funcionales de las imagenes de entrenamiento y crear objeto fd con dichas curvas en base bspline
+
+```{r}
+
+imagenesEntxey <- NULL
+for (j in 1:7) {
+imagenductil <- read.bitmap(paste("DuctilEnt", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenductil <- imagenductil [,,1] # Deja un solo canal
+imagenductilt <- t(imagenductil) 
+imagenductilxey <- rbind(imagenductil,imagenductilt)
+imagenductilxey <- t(imagenductilxey)
+imagenesEntxey <- cbind(imagenesEntxey,imagenductilxey)}
+attributes(imagenesEntxey)
+
+for (j in 1:7) {
+imagenfragil <- read.bitmap(paste("FragilEnt", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenfragil <- imagenfragil [,,1] # Deja un solo canal
+imagenfragilt <- t(imagenfragil) 
+imagenfragilxey <- rbind(imagenfragil,imagenfragilt)
+imagenfragilxey <- t(imagenfragilxey)
+imagenesEntxey <- cbind(imagenesEntxey,imagenfragilxey)}
+attributes(imagenesEntxey)
+
+for (j in 1:7) {
+imagenfatiga <- read.bitmap(paste("FatigaEnt", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenfatiga <- imagenfatiga [,,1] # Deja un solo canal
+imagenfatigat <- t(imagenfatiga) 
+imagenfatigaxey <- rbind(imagenfatiga,imagenfatigat)
+imagenfatigaxey <- t(imagenfatigaxey)
+imagenesEntxey <- cbind(imagenesEntxey,imagenfatigaxey)}
+attributes(imagenesEntxey)
+
+# Convertir en Data Frame Entrenamiento
+imagenesEntxeydf <- as.data.frame (imagenesEntxey)
+attributes(imagenesEntxeydf)
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenesEntxeydf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 150)
+plot(base_bspline)
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenesEntxeydf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothEnt <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothEnt$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+print(log(selected_lamdba, 10))
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothEnt <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothEnt, xlab= "Pixel", ylab = "Intensidad")
+plot(fd_smoothEnt$fd[1], xlab= "Pixel", ylab = "Intensidad")
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedEnt <- fitted(fd_smoothEnt)
+plot(imagenesEntxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedEnt[,1],col="2")
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEnt <- as.factor(c(rep(1,2800), rep(2,2800), rep(3,2800)))
+```
+
+# 2. Cargar los datos funcionales de las imagenes de ensayo y crear objeto fd con dichas curvas en base bspline
+
+```{r}
+
+imagenesEnsxey <- NULL
+for (j in 1:3) {
+imagenductil <- read.bitmap(paste("DuctilEns", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenductil <- imagenductil [,,1] # Deja un solo canal
+imagenductilt <- t(imagenductil) 
+imagenductilxey <- rbind(imagenductil,imagenductilt)
+imagenductilxey <- t(imagenductilxey)
+imagenesEnsxey <- cbind(imagenesEnsxey,imagenductilxey)}
+attributes(imagenesEnsxey)
+
+for (j in 1:3) {
+imagenfragil <- read.bitmap(paste("FragilEns", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenfragil <- imagenfragil [,,1] # Deja un solo canal
+imagenfragilt <- t(imagenfragil) 
+imagenfragilxey <- rbind(imagenfragil,imagenfragilt)
+imagenfragilxey <- t(imagenfragilxey)
+imagenesEnsxey <- cbind(imagenesEnsxey,imagenfragilxey)}
+attributes(imagenesEnsxey)
+
+for (j in 1:3) {
+imagenfatiga <- read.bitmap(paste("FatigaEns", j,".jpg", sep = "")) # crea una matriz de x filas y columanas y z=3 canales
+imagenfatiga <- imagenfatiga [,,1] # Deja un solo canal
+imagenfatigat <- t(imagenfatiga) 
+imagenfatigaxey <- rbind(imagenfatiga,imagenfatigat)
+imagenfatigaxey <- t(imagenfatigaxey)
+imagenesEnsxey <- cbind(imagenesEnsxey,imagenfatigaxey)}
+attributes(imagenesEnsxey)
+
+# Convertir en Data Frame Ensayo
+imagenesEnsxeydf <- as.data.frame (imagenesEnsxey)
+attributes(imagenesEnsxeydf)
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenesEnsxeydf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 150)
+plot(base_bspline)
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenesEnsxeydf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothEns <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothEns$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+print(log(selected_lamdba, 10))
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothEns <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothEns, xlab= "Pixel", ylab = "Intensidad")
+plot(fd_smoothEns$fd[1], xlab= "Pixel", ylab = "Intensidad")
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedEns <- fitted(fd_smoothEns)
+plot(imagenesEnsxey[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedEns[,1],col="2")
+
+# Crear el factor de categorias de tratamientos
+# Categoria 1 es dúctil, categoría 2 es frágil y categoría 3 es fatiga
+CatEns <- as.factor(c(rep(1,1200), rep(2,1200), rep(3,1200)))
+```
+
+# 3. Datos funcionales de autocorrelacion
+# 3.1 Gráficas de funciones de autocorrelación de dúctil
+
+```{r}
+sapply(1:4, function(i) {
+  acf(imagenesEntxey[,i], lag.max=nrow(imagenesEntxey))
+  })
+```
+
+# 3.2 Gráficas de funciones de autocorrelación de frágil
+
+```{r}
+sapply(2801:2804, function(i) {
+  acf(imagenesEntxey[,i], lag.max=nrow(imagenesEntxey))
+  })
+```
+
+# 3.3 Gráficas de funciones de autocorrelación de fatiga
+
+```{r}
+sapply(5601:5604, function(i) {
+  acf(imagenesEntxey[,i], lag.max=nrow(imagenesEntxey))
+  })
+```
+
+# 3.4 Matrices con autocorrelaciones de cada dato funcional de entrenamiento y prueba
+
+```{r}
+imagenesEntxeyAC <- NULL
+for (i in 1:ncol(imagenesEntxey)) { 
+  AC <- acf(imagenesEntxey[,i], plot = FALSE, lag.max=nrow(imagenesEntxey))
+  imagenesEntxeyAC <- cbind(imagenesEntxeyAC,AC$acf)
+}
+
+imagenesEnsxeyAC <- NULL
+for (i in 1:ncol(imagenesEnsxey)) { 
+  AC <- acf(imagenesEnsxey[,i], plot = FALSE, lag.max=nrow(imagenesEnsxey))
+  imagenesEnsxeyAC <- cbind(imagenesEnsxeyAC,AC$acf)
+}
+
+attributes(imagenesEntxeyAC)
+```
+
+```{r}
+attributes(imagenesEnsxeyAC)
+```
+
+# 3.5 Funciones de autocorrelación como datos funcionales
+
+```{r}
+# Convertir en Data Frame Entrenamiento AC
+imagenesEntxeyACdf <- as.data.frame (imagenesEntxeyAC)
+attributes(imagenesEntxeyACdf)
+
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenesEntxeyACdf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 35)
+plot(base_bspline)
+
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenesEntxeyACdf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothEntAC <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothEntAC$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+
+print(log(selected_lamdba, 10))
+
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothEntAC <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothEntAC, xlab= "Pixel", ylab = "Intensidad")
+
+plot(fd_smoothEntAC$fd[1], xlab= "Pixel", ylab = "Intensidad")
+
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedEntAC <- fitted(fd_smoothEntAC)
+plot(imagenesEntxeyAC[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedEntAC[,1],col="2")
+
+# Convertir en Data Frame Ensayo AC
+imagenesEnsxeyACdf <- as.data.frame (imagenesEnsxeyAC)
+attributes(imagenesEnsxeyACdf)
+
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenesEnsxeyACdf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 35)
+plot(base_bspline)
+
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenesEnsxeyACdf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothEnsAC <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothEnsAC$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+
+print(log(selected_lamdba, 10))
+
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothEnsAC <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothEnsAC, xlab= "Pixel", ylab = "Intensidad")
+
+plot(fd_smoothEnsAC$fd[1], xlab= "Pixel", ylab = "Intensidad")
+
+# una curva
+
+# Comparación de curvas originales y suavizadas
+fd_fittedEnsAC <- fitted(fd_smoothEnsAC)
+plot(imagenesEnsxeyAC[,1],type = "o",xlab="Pixel",ylab="Intensidad")
+lines(fd_fittedEnsAC[,1],col="2")
+```
+
+# 4. Clasificador usando Extremal Depth
+
+Cada curva de AC se mira a cual grupo esta más cercano según Extremal Depth y con base en ello se obtiene los porcentajes de acierto. 
+
+Corre en 3 horas.
+
+Por Curvas:
+La fracción de acierto global es de 0.5258333, para imágenes dúctiles es de 0.585, para imágenes frágiles de 0.9925 y para imágenes de fatiga 0.
+
+Por fotos:
+La fracción de acierto global es de 0.5555,
+
+Dos dúctiles se adjudica a dúctil. Acierto 66%.
+Las tres frágiles se adjudican correctamente. Acierto 100%.
+Ninguna de fatiga se adjudicó correcta. Acierto 0%.
+
+```{r}
+fit_smoothEnt <- fitted(fd_smoothEnt)
+fit_smoothEns <- fitted(fd_smoothEns)
+
+fit_smoothEntAC <- fitted(fd_smoothEntAC)
+fit_smoothEnsAC <- fitted(fd_smoothEnsAC)
+
+clasificacionMin <- NULL
+clasificacionMean <- NULL
+clasificacionMax <- NULL
+
+for (i in 1:3600) {
+  curvas_ductil <- cbind(fit_smoothEnt[,1:2800],fit_smoothEns[,i])
+  ED_ductil <- fdaoutlier::extremal_depth(t(curvas_ductil))
+  orden_ED_ductil <- order(ED_ductil, decreasing = T)
+  posicion_ductil <- which(orden_ED_ductil == 2801)
+  
+  curvas_fragil <- cbind(fit_smoothEnt[,2801:5600],fit_smoothEns[,i])
+  ED_fragil <- fdaoutlier::extremal_depth(t(curvas_fragil))
+  orden_ED_fragil <- order(ED_fragil, decreasing = T)
+  posicion_fragil <- which(orden_ED_fragil == 2801)
+  
+  curvas_fatiga <- cbind(fit_smoothEnt[,5601:8400],fit_smoothEns[,i])
+  ED_fatiga <- fdaoutlier::extremal_depth(t(curvas_fatiga))
+  orden_ED_fatiga <- order(ED_fatiga, decreasing = T)
+  posicion_fatiga <- which(orden_ED_fatiga == 2801)
+  
+  
+  
+  curvas_ductilAC <- cbind(fit_smoothEntAC[,1:2800],fit_smoothEnsAC[,i])
+  ED_ductilAC <- fdaoutlier::extremal_depth(t(curvas_ductilAC))
+  orden_ED_ductilAC <- order(ED_ductilAC, decreasing = T)
+  posicion_ductilAC <- which(orden_ED_ductilAC == 2801)
+  
+  curvas_fragilAC <- cbind(fit_smoothEntAC[,2801:5600],fit_smoothEnsAC[,i])
+  ED_fragilAC <- fdaoutlier::extremal_depth(t(curvas_fragilAC))
+  orden_ED_fragilAC <- order(ED_fragilAC, decreasing = T)
+  posicion_fragilAC <- which(orden_ED_fragilAC == 2801)
+  
+  curvas_fatigaAC <- cbind(fit_smoothEntAC[,5601:8400],fit_smoothEnsAC[,i])
+  ED_fatigaAC <- fdaoutlier::extremal_depth(t(curvas_fatigaAC))
+  orden_ED_fatigaAC <- order(ED_fatigaAC, decreasing = T)
+  posicion_fatigaAC <- which(orden_ED_fatigaAC == 2801)
+  
+  
+  
+  posicion_ductilMin <- min(c(posicion_ductil, posicion_ductilAC))
+  posicion_fragilMin <- min(c(posicion_fragil, posicion_fragilAC))
+  posicion_fatigaMin <- min(c(posicion_fatiga, posicion_fatigaAC))
+  
+  
+  
+  if (posicion_ductilMin <= posicion_fragilMin & posicion_ductilMin <= posicion_fatigaMin) {clasificacionMin[i] <- 1}
+  if (posicion_fragilMin <= posicion_ductilMin & posicion_fragilMin <= posicion_fatigaMin) {clasificacionMin[i] <- 2}
+  if (posicion_fatigaMin <= posicion_ductilMin & posicion_fatigaMin <= posicion_fragilMin) {clasificacionMin[i] <- 3}
+  
+  
+  posicion_ductilMean <- mean(c(posicion_ductil, posicion_ductilAC))
+  posicion_fragilMean <- mean(c(posicion_fragil, posicion_fragilAC))
+  posicion_fatigaMean <- mean(c(posicion_fatiga, posicion_fatigaAC))
+  
+  
+  
+  if (posicion_ductilMean <= posicion_fragilMean & posicion_ductilMean <= posicion_fatigaMean) {clasificacionMean[i] <- 1}
+  if (posicion_fragilMean <= posicion_ductilMean & posicion_fragilMean <= posicion_fatigaMean) {clasificacionMean[i] <- 2}
+  if (posicion_fatigaMean <= posicion_ductilMean & posicion_fatigaMean <= posicion_fragilMean) {clasificacionMean[i] <- 3}
+  
+  
+  
+  posicion_ductilMax <- max(c(posicion_ductil, posicion_ductilAC))
+  posicion_fragilMax <- max(c(posicion_fragil, posicion_fragilAC))
+  posicion_fatigaMax <- max(c(posicion_fatiga, posicion_fatigaAC))
+  
+  
+  
+  if (posicion_ductilMax <= posicion_fragilMax & posicion_ductilMax <= posicion_fatigaMax) {clasificacionMax[i] <- 1}
+  if (posicion_fragilMax <= posicion_ductilMax & posicion_fragilMax <= posicion_fatigaMax) {clasificacionMax[i] <- 2}
+  if (posicion_fatigaMax <= posicion_ductilMax & posicion_fatigaMax <= posicion_fragilMax) {clasificacionMax[i] <- 3}
+  
+  
+  
+}
+
+clasificacionMin
+clasificacionMean
+clasificacionMax
+
+
+```
+
+# 4.1 Clasificación con Min (máxima profundidad entre curvas originales y de AC)
+
+Si en la tabla no hay conteos que NA, luego toca manualmente quitar esos datos en la suma de porcentajes
+
+```{r}
+# Curvas dúctiles
+d <- table (clasificacionMin[1:1200])
+d
+d[1]/1200
+# Curvas frágiles
+f <- table (clasificacionMin[1201:2400])
+f
+f[2]/1200
+# Curvas fatiga
+fa <- table (clasificacionMin[2401:3600])
+fa
+fa[3]/1200
+# Curvas total
+(d[1]+f[2])+fa[3]/3600
+
+
+# Foto dúctil 1
+table (clasificacionMin[1:400])
+# Foto dúctil 2
+table (clasificacionMin[401:800])
+# Foto dúctil 3
+table (clasificacionMin[801:1200])
+# Foto frágil 1
+table (clasificacionMin[1201:1600])
+# Foto frágil 2
+table (clasificacionMin[1601:2000])
+# Foto frágil 3
+table (clasificacionMin[2001:2400])
+# Foto fatiga 1
+table (clasificacionMin[2401:2800])
+# Foto fatiga 2
+table (clasificacionMin[2801:3200])
+# Foto fatiga 3
+table (clasificacionMin[3201:3600])
+
+```
+
+
+# 4.2 Clasificación con Mean (promedio de profundidad entre curvas originales y de AC)
+
+Si en la tabla no hay conteos que NA, luego toca manualmente quitar esos datos en la suma de porcentajes
+
+```{r}
+# Curvas dúctiles
+d2 <- table (clasificacionMean[1:1200])
+d2
+d2[1]/1200
+# Curvas frágiles
+f2 <- table (clasificacionMean[1201:2400])
+f2
+f2[2]/1200
+# Curvas fatiga
+fa2 <- table (clasificacionMean[2401:3600])
+fa2
+fa2[3]/1200
+# Curvas total
+(d2[1]+f2[2]+fa2[3])/3600
+
+
+# Foto dúctil 1
+table (clasificacionMean[1:400])
+# Foto dúctil 2
+table (clasificacionMean[401:800])
+# Foto dúctil 3
+table (clasificacionMean[801:1200])
+# Foto frágil 1
+table (clasificacionMean[1201:1600])
+# Foto frágil 2
+table (clasificacionMean[1601:2000])
+# Foto frágil 3
+table (clasificacionMean[2001:2400])
+# Foto fatiga 1
+table (clasificacionMean[2401:2800])
+# Foto fatiga 2
+table (clasificacionMean[2801:3200])
+# Foto fatiga 3
+table (clasificacionMean[3201:3600])
+
+```
+
+
+# 4.3 Clasificación con Max (mínima profundidad entre curvas originales y de AC)
+
+Si en la tabla no hay conteos que NA, luego toca manualmente quitar esos datos en la suma de porcentajes
+
+```{r}
+# Curvas dúctiles
+d3 <- table (clasificacionMax[1:1200])
+d3
+d3[1]/1200
+# Curvas frágiles
+f3 <- table (clasificacionMax[1201:2400])
+f3
+f3[2]/1200
+# Curvas fatiga
+fa3 <- table (clasificacionMax[2401:3600])
+fa3
+fa3[3]/1200
+# Curvas total
+(d3[1]+f3[2]+fa3[3])/3600
+
+
+# Foto dúctil 1
+table (clasificacionMax[1:400])
+# Foto dúctil 2
+table (clasificacionMax[401:800])
+# Foto dúctil 3
+table (clasificacionMax[801:1200])
+# Foto frágil 1
+table (clasificacionMax[1201:1600])
+# Foto frágil 2
+table (clasificacionMax[1601:2000])
+# Foto frágil 3
+table (clasificacionMax[2001:2400])
+# Foto fatiga 1
+table (clasificacionMax[2401:2800])
+# Foto fatiga 2
+table (clasificacionMax[2801:3200])
+# Foto fatiga 3
+table (clasificacionMax[3201:3600])
+
+```

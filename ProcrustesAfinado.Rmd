@@ -1,0 +1,624 @@
+---
+title: "Distancia Entre Matrices de Covarianza"
+author: "Edgar Espejo"
+date: '2022-12-13'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Comparación de fotos de los tipos de fracturas
+
+```{r}
+# libreria de lectura de bitmaps para bmp, jpeg, png y tiff
+library(readbitmap)
+library(fda)
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(shapes)
+```
+
+
+
+# 1. Cargar imagenes dúctiles
+
+Total de imagenes 10. Por cada foto 400 datos funcionales (lineas de pixeles en X y líneas de pixeles en y), para un total de 4000 datos.
+
+```{r}
+imagenductilent1 <- read.bitmap("DuctilEnt1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent1 <- imagenductilent1 [,,1] # Deja un solo canal
+imagenductilent1t <- t(imagenductilent1) 
+imagenductilent1xey <- rbind(imagenductilent1,imagenductilent1t)
+imagenductilent1xey <- t(imagenductilent1xey)
+dim(imagenductilent1xey)
+
+imagenductilent2 <- read.bitmap("DuctilEnt2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent2 <- imagenductilent2 [,,1] # Deja un solo canal
+imagenductilent2t <- t(imagenductilent2) 
+imagenductilent2xey <- rbind(imagenductilent2,imagenductilent2t)
+imagenductilent2xey <- t(imagenductilent2xey)
+dim(imagenductilent2xey)
+
+imagenductilent3 <- read.bitmap("DuctilEnt3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent3 <- imagenductilent3 [,,1] # Deja un solo canal
+imagenductilent3t <- t(imagenductilent3) 
+imagenductilent3xey <- rbind(imagenductilent3,imagenductilent3t)
+imagenductilent3xey <- t(imagenductilent3xey)
+dim(imagenductilent3xey)
+
+imagenductilent4 <- read.bitmap("DuctilEnt4.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent4 <- imagenductilent4 [,,1] # Deja un solo canal
+imagenductilent4t <- t(imagenductilent4) 
+imagenductilent4xey <- rbind(imagenductilent4,imagenductilent4t)
+imagenductilent4xey <- t(imagenductilent4xey)
+dim(imagenductilent4xey)
+
+imagenductilent5 <- read.bitmap("DuctilEnt5.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent5 <- imagenductilent5 [,,1] # Deja un solo canal
+imagenductilent5t <- t(imagenductilent5) 
+imagenductilent5xey <- rbind(imagenductilent5,imagenductilent5t)
+imagenductilent5xey <- t(imagenductilent5xey)
+dim(imagenductilent5xey)
+
+imagenductilent6 <- read.bitmap("DuctilEnt6.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent6 <- imagenductilent6 [,,1] # Deja un solo canal
+imagenductilent6t <- t(imagenductilent6) 
+imagenductilent6xey <- rbind(imagenductilent6,imagenductilent6t)
+imagenductilent6xey <- t(imagenductilent6xey)
+dim(imagenductilent6xey)
+
+imagenductilent7 <- read.bitmap("DuctilEnt7.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilent7 <- imagenductilent7 [,,1] # Deja un solo canal
+imagenductilent7t <- t(imagenductilent7) 
+imagenductilent7xey <- rbind(imagenductilent7,imagenductilent7t)
+imagenductilent7xey <- t(imagenductilent7xey)
+dim(imagenductilent7xey)
+
+imagenductilens1 <- read.bitmap("DuctilEns1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilens1 <- imagenductilens1 [,,1] # Deja un solo canal
+imagenductilens1t <- t(imagenductilens1) 
+imagenductilens1xey <- rbind(imagenductilens1,imagenductilens1t)
+imagenductilens1xey <- t(imagenductilens1xey)
+dim(imagenductilens1xey)
+
+imagenductilens2 <- read.bitmap("DuctilEns2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilens2 <- imagenductilens2 [,,1] # Deja un solo canal
+imagenductilens2t <- t(imagenductilens2) 
+imagenductilens2xey <- rbind(imagenductilens2,imagenductilens2t)
+imagenductilens2xey <- t(imagenductilens2xey)
+dim(imagenductilens2xey)
+
+imagenductilens3 <- read.bitmap("DuctilEns3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenductilens3 <- imagenductilens3 [,,1] # Deja un solo canal
+imagenductilens3t <- t(imagenductilens3) 
+imagenductilens3xey <- rbind(imagenductilens3,imagenductilens3t)
+imagenductilens3xey <- t(imagenductilens3xey)
+dim(imagenductilens3xey)
+
+imagenductilxey <- cbind(imagenductilent1xey,imagenductilent2xey,imagenductilent3xey,imagenductilent4xey,imagenductilent5xey,imagenductilent6xey,imagenductilent7xey,imagenductilens1xey,imagenductilens2xey,imagenductilens3xey)
+
+dim(imagenductilxey)
+
+# Convertir en Data Frame Ductil
+imagenductilxeydf <- as.data.frame (imagenductilxey)
+attributes(imagenductilxeydf)
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenductilxeydf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 150)
+plot(base_bspline)
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenductilxeydf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothductil <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothductil$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+print(log(selected_lamdba, 10))
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothductil <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothductil, xlab= "Pixel", ylab = "Intensidad Totas Las Imagenes")
+
+
+# una curva por cada foto
+
+# Comparación de curvas originales y suavizadas
+fd_fittedductil <- fitted(fd_smoothductil)
+plot(imagenductilxey[,1],type = "o",xlab="Pixel",ylab="Intensidad Ent1")
+lines(fd_fittedductil[,1],col="2")
+plot(imagenductilxey[,401],type = "o",xlab="Pixel",ylab="Intensidad Ent2")
+lines(fd_fittedductil[,401],col="2")
+plot(imagenductilxey[,801],type = "o",xlab="Pixel",ylab="Intensidad Ent3")
+lines(fd_fittedductil[,801],col="2")
+plot(imagenductilxey[,1201],type = "o",xlab="Pixel",ylab="Intensidad Ent4")
+lines(fd_fittedductil[,1201],col="2")
+plot(imagenductilxey[,1601],type = "o",xlab="Pixel",ylab="Intensidad Ent5")
+lines(fd_fittedductil[,1601],col="2")
+plot(imagenductilxey[,2001],type = "o",xlab="Pixel",ylab="Intensidad Ent6")
+lines(fd_fittedductil[,2001],col="2")
+plot(imagenductilxey[,2401],type = "o",xlab="Pixel",ylab="Intensidad Ent7")
+lines(fd_fittedductil[,2401],col="2")
+plot(imagenductilxey[,2801],type = "o",xlab="Pixel",ylab="Intensidad Ens1")
+lines(fd_fittedductil[,2801],col="2")
+plot(imagenductilxey[,3201],type = "o",xlab="Pixel",ylab="Intensidad Ens2")
+lines(fd_fittedductil[,3201],col="2")
+plot(imagenductilxey[,3601],type = "o",xlab="Pixel",ylab="Intensidad Ens3")
+lines(fd_fittedductil[,3601],col="2")
+```
+
+
+
+# 1.1 Función de varianza imagenes dúctiles
+
+Para ello se usa la función var.fd. En este caso se divide el recorrido en 200 puntos (igual que los pixeles).
+
+Se calcula el operador de los datos de entrenamiento como conjunto y el de cada imagen de ensayo por separado.
+
+```{r}
+var_fdductilEnt <- var.fd(fd_smoothductil$fd[1:2800])
+var_fdductilEns1 <- var.fd(fd_smoothductil$fd[2801:3200])
+var_fdductilEns2 <- var.fd(fd_smoothductil$fd[3201:3600])
+var_fdductilEns3 <- var.fd(fd_smoothductil$fd[3601:4000])
+# Calcula la varianza del objeto funcional de cada imagen
+# La salida es un objeto bivariado funcional
+# Necesita dos bases una para cada eje
+
+eva <- seq(1, npuntos, length = 200)
+matriz_var_ductilEnt <- eval.bifd(eva, eva, var_fdductilEnt)
+matriz_var_ductilEns1 <- eval.bifd(eva, eva, var_fdductilEns1)
+matriz_var_ductilEns2 <- eval.bifd(eva, eva, var_fdductilEns2)
+matriz_var_ductilEns3 <- eval.bifd(eva, eva, var_fdductilEns3)
+```
+
+
+# 2. Cargar imagenes frágiles
+
+Total de imagenes 10. Por cada foto 400 datos funcionales (lineas de pixeles en X y líneas de pixeles en y), para un total de 4000 datos.
+
+```{r}
+imagenfragilent1 <- read.bitmap("FragilEnt1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent1 <- imagenfragilent1 [,,1] # Deja un solo canal
+imagenfragilent1t <- t(imagenfragilent1) 
+imagenfragilent1xey <- rbind(imagenfragilent1,imagenfragilent1t)
+imagenfragilent1xey <- t(imagenfragilent1xey)
+dim(imagenfragilent1xey)
+
+imagenfragilent2 <- read.bitmap("FragilEnt2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent2 <- imagenfragilent2 [,,1] # Deja un solo canal
+imagenfragilent2t <- t(imagenfragilent2) 
+imagenfragilent2xey <- rbind(imagenfragilent2,imagenfragilent2t)
+imagenfragilent2xey <- t(imagenfragilent2xey)
+dim(imagenfragilent2xey)
+
+imagenfragilent3 <- read.bitmap("FragilEnt3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent3 <- imagenfragilent3 [,,1] # Deja un solo canal
+imagenfragilent3t <- t(imagenfragilent3) 
+imagenfragilent3xey <- rbind(imagenfragilent3,imagenfragilent3t)
+imagenfragilent3xey <- t(imagenfragilent3xey)
+dim(imagenfragilent3xey)
+
+imagenfragilent4 <- read.bitmap("FragilEnt4.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent4 <- imagenfragilent4 [,,1] # Deja un solo canal
+imagenfragilent4t <- t(imagenfragilent4) 
+imagenfragilent4xey <- rbind(imagenfragilent4,imagenfragilent4t)
+imagenfragilent4xey <- t(imagenfragilent4xey)
+dim(imagenfragilent4xey)
+
+imagenfragilent5 <- read.bitmap("FragilEnt5.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent5 <- imagenfragilent5 [,,1] # Deja un solo canal
+imagenfragilent5t <- t(imagenfragilent5) 
+imagenfragilent5xey <- rbind(imagenfragilent5,imagenfragilent5t)
+imagenfragilent5xey <- t(imagenfragilent5xey)
+dim(imagenfragilent5xey)
+
+imagenfragilent6 <- read.bitmap("FragilEnt6.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent6 <- imagenfragilent6 [,,1] # Deja un solo canal
+imagenfragilent6t <- t(imagenfragilent6) 
+imagenfragilent6xey <- rbind(imagenfragilent6,imagenfragilent6t)
+imagenfragilent6xey <- t(imagenfragilent6xey)
+dim(imagenfragilent6xey)
+
+imagenfragilent7 <- read.bitmap("FragilEnt7.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilent7 <- imagenfragilent7 [,,1] # Deja un solo canal
+imagenfragilent7t <- t(imagenfragilent7) 
+imagenfragilent7xey <- rbind(imagenfragilent7,imagenfragilent7t)
+imagenfragilent7xey <- t(imagenfragilent7xey)
+dim(imagenfragilent7xey)
+
+imagenfragilens1 <- read.bitmap("FragilEns1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilens1 <- imagenfragilens1 [,,1] # Deja un solo canal
+imagenfragilens1t <- t(imagenfragilens1) 
+imagenfragilens1xey <- rbind(imagenfragilens1,imagenfragilens1t)
+imagenfragilens1xey <- t(imagenfragilens1xey)
+dim(imagenfragilens1xey)
+
+imagenfragilens2 <- read.bitmap("FragilEns2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilens2 <- imagenfragilens2 [,,1] # Deja un solo canal
+imagenfragilens2t <- t(imagenfragilens2) 
+imagenfragilens2xey <- rbind(imagenfragilens2,imagenfragilens2t)
+imagenfragilens2xey <- t(imagenfragilens2xey)
+dim(imagenfragilens2xey)
+
+imagenfragilens3 <- read.bitmap("fragilEns3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfragilens3 <- imagenfragilens3 [,,1] # Deja un solo canal
+imagenfragilens3t <- t(imagenfragilens3) 
+imagenfragilens3xey <- rbind(imagenfragilens3,imagenfragilens3t)
+imagenfragilens3xey <- t(imagenfragilens3xey)
+dim(imagenfragilens3xey)
+
+imagenfragilxey <- cbind(imagenfragilent1xey,imagenfragilent2xey,imagenfragilent3xey,imagenfragilent4xey,imagenfragilent5xey,imagenfragilent6xey,imagenfragilent7xey,imagenfragilens1xey,imagenfragilens2xey,imagenfragilens3xey)
+
+dim(imagenfragilxey)
+
+# Convertir en Data Frame fragil
+imagenfragilxeydf <- as.data.frame (imagenfragilxey)
+attributes(imagenfragilxeydf)
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenfragilxeydf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 150)
+plot(base_bspline)
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenfragilxeydf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothfragil <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothfragil$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+print(log(selected_lamdba, 10))
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothfragil <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothfragil, xlab= "Pixel", ylab = "Intensidad Totas Las Imagenes")
+
+
+# una curva por cada foto
+
+# Comparación de curvas originales y suavizadas
+fd_fittedfragil <- fitted(fd_smoothfragil)
+plot(imagenfragilxey[,1],type = "o",xlab="Pixel",ylab="Intensidad Ent1")
+lines(fd_fittedfragil[,1],col="2")
+plot(imagenfragilxey[,401],type = "o",xlab="Pixel",ylab="Intensidad Ent2")
+lines(fd_fittedfragil[,401],col="2")
+plot(imagenfragilxey[,801],type = "o",xlab="Pixel",ylab="Intensidad Ent3")
+lines(fd_fittedfragil[,801],col="2")
+plot(imagenfragilxey[,1201],type = "o",xlab="Pixel",ylab="Intensidad Ent4")
+lines(fd_fittedfragil[,1201],col="2")
+plot(imagenfragilxey[,1601],type = "o",xlab="Pixel",ylab="Intensidad Ent5")
+lines(fd_fittedfragil[,1601],col="2")
+plot(imagenfragilxey[,2001],type = "o",xlab="Pixel",ylab="Intensidad Ent6")
+lines(fd_fittedfragil[,2001],col="2")
+plot(imagenfragilxey[,2401],type = "o",xlab="Pixel",ylab="Intensidad Ent7")
+lines(fd_fittedfragil[,2401],col="2")
+plot(imagenfragilxey[,2801],type = "o",xlab="Pixel",ylab="Intensidad Ens1")
+lines(fd_fittedfragil[,2801],col="2")
+plot(imagenfragilxey[,3201],type = "o",xlab="Pixel",ylab="Intensidad Ens2")
+lines(fd_fittedfragil[,3201],col="2")
+plot(imagenfragilxey[,3601],type = "o",xlab="Pixel",ylab="Intensidad Ens3")
+lines(fd_fittedfragil[,3601],col="2")
+```
+
+
+# 2.1 Función de varianza imagen frágil
+
+Para ello se usa la función var.fd. En este caso se divide el recorrido en 200 puntos (igual que los pixeles).
+
+Se calcula el operador de los datos de entrenamiento como conjunto y el de cada imagen de ensayo por separado.
+
+```{r}
+var_fdfragilEnt <- var.fd(fd_smoothfragil$fd[1:2800])
+var_fdfragilEns1 <- var.fd(fd_smoothfragil$fd[2801:3200])
+var_fdfragilEns2 <- var.fd(fd_smoothfragil$fd[3201:3600])
+var_fdfragilEns3 <- var.fd(fd_smoothfragil$fd[3601:4000])
+# Calcula la varianza del objeto funcional de cada imagen
+# La salida es un objeto bivariado funcional
+# Necesita dos bases una para cada eje
+
+eva <- seq(1, npuntos, length = 200)
+matriz_var_fragilEnt <- eval.bifd(eva, eva, var_fdfragilEnt)
+matriz_var_fragilEns1 <- eval.bifd(eva, eva, var_fdfragilEns1)
+matriz_var_fragilEns2 <- eval.bifd(eva, eva, var_fdfragilEns2)
+matriz_var_fragilEns3 <- eval.bifd(eva, eva, var_fdfragilEns3)
+```
+
+
+# 3. Cargar imagenes fatiga
+
+Total de imagenes 10. Por cada foto 400 datos funcionales (lineas de pixeles en X y líneas de pixeles en y), para un total de 4000 datos.
+
+```{r}
+imagenfatigaent1 <- read.bitmap("FatigaEnt1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent1 <- imagenfatigaent1 [,,1] # Deja un solo canal
+imagenfatigaent1t <- t(imagenfatigaent1) 
+imagenfatigaent1xey <- rbind(imagenfatigaent1,imagenfatigaent1t)
+imagenfatigaent1xey <- t(imagenfatigaent1xey)
+dim(imagenfatigaent1xey)
+
+imagenfatigaent2 <- read.bitmap("FatigaEnt2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent2 <- imagenfatigaent2 [,,1] # Deja un solo canal
+imagenfatigaent2t <- t(imagenfatigaent2) 
+imagenfatigaent2xey <- rbind(imagenfatigaent2,imagenfatigaent2t)
+imagenfatigaent2xey <- t(imagenfatigaent2xey)
+dim(imagenfatigaent2xey)
+
+imagenfatigaent3 <- read.bitmap("FatigaEnt3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent3 <- imagenfatigaent3 [,,1] # Deja un solo canal
+imagenfatigaent3t <- t(imagenfatigaent3) 
+imagenfatigaent3xey <- rbind(imagenfatigaent3,imagenfatigaent3t)
+imagenfatigaent3xey <- t(imagenfatigaent3xey)
+dim(imagenfatigaent3xey)
+
+imagenfatigaent4 <- read.bitmap("FatigaEnt4.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent4 <- imagenfatigaent4 [,,1] # Deja un solo canal
+imagenfatigaent4t <- t(imagenfatigaent4) 
+imagenfatigaent4xey <- rbind(imagenfatigaent4,imagenfatigaent4t)
+imagenfatigaent4xey <- t(imagenfatigaent4xey)
+dim(imagenfatigaent4xey)
+
+imagenfatigaent5 <- read.bitmap("FatigaEnt5.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent5 <- imagenfatigaent5 [,,1] # Deja un solo canal
+imagenfatigaent5t <- t(imagenfatigaent5) 
+imagenfatigaent5xey <- rbind(imagenfatigaent5,imagenfatigaent5t)
+imagenfatigaent5xey <- t(imagenfatigaent5xey)
+dim(imagenfatigaent5xey)
+
+imagenfatigaent6 <- read.bitmap("FatigaEnt6.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent6 <- imagenfatigaent6 [,,1] # Deja un solo canal
+imagenfatigaent6t <- t(imagenfatigaent6) 
+imagenfatigaent6xey <- rbind(imagenfatigaent6,imagenfatigaent6t)
+imagenfatigaent6xey <- t(imagenfatigaent6xey)
+dim(imagenfatigaent6xey)
+
+imagenfatigaent7 <- read.bitmap("FatigaEnt7.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaent7 <- imagenfatigaent7 [,,1] # Deja un solo canal
+imagenfatigaent7t <- t(imagenfatigaent7) 
+imagenfatigaent7xey <- rbind(imagenfatigaent7,imagenfatigaent7t)
+imagenfatigaent7xey <- t(imagenfatigaent7xey)
+dim(imagenfatigaent7xey)
+
+imagenfatigaens1 <- read.bitmap("FatigaEns1.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaens1 <- imagenfatigaens1 [,,1] # Deja un solo canal
+imagenfatigaens1t <- t(imagenfatigaens1) 
+imagenfatigaens1xey <- rbind(imagenfatigaens1,imagenfatigaens1t)
+imagenfatigaens1xey <- t(imagenfatigaens1xey)
+dim(imagenfatigaens1xey)
+
+imagenfatigaens2 <- read.bitmap("FatigaEns2.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaens2 <- imagenfatigaens2 [,,1] # Deja un solo canal
+imagenfatigaens2t <- t(imagenfatigaens2) 
+imagenfatigaens2xey <- rbind(imagenfatigaens2,imagenfatigaens2t)
+imagenfatigaens2xey <- t(imagenfatigaens2xey)
+dim(imagenfatigaens2xey)
+
+imagenfatigaens3 <- read.bitmap("FatigaEns3.jpg") # crea una matriz de x filas y columanas y z=3 canales
+imagenfatigaens3 <- imagenfatigaens3 [,,1] # Deja un solo canal
+imagenfatigaens3t <- t(imagenfatigaens3) 
+imagenfatigaens3xey <- rbind(imagenfatigaens3,imagenfatigaens3t)
+imagenfatigaens3xey <- t(imagenfatigaens3xey)
+dim(imagenfatigaens3xey)
+
+imagenfatigaxey <- cbind(imagenfatigaent1xey,imagenfatigaent2xey,imagenfatigaent3xey,imagenfatigaent4xey,imagenfatigaent5xey,imagenfatigaent6xey,imagenfatigaent7xey,imagenfatigaens1xey,imagenfatigaens2xey,imagenfatigaens3xey)
+
+dim(imagenfatigaxey)
+
+# Convertir en Data Frame fatiga
+imagenfatigaxeydf <- as.data.frame (imagenfatigaxey)
+attributes(imagenfatigaxeydf)
+# las filas son el número de puntos de evaluación de la función y las columnas el número de curvas
+# Suavizamiento spline
+# Creación de la base de funciones
+npuntos <- nrow(imagenfatigaxeydf)
+base_bspline <- create.bspline.basis(c(1, npuntos), 150)
+plot(base_bspline)
+summary(base_bspline)
+
+# Selección de lambda
+gcv <- NULL
+lambda_list <- seq(-2, 4, length.out = 30)
+# estos son las potencias de 10 de variación del lambda
+# inicia con valores muy cercanos a cero 10^-2 hasta 10^4
+matrix_data <- as.matrix(imagenfatigaxeydf)
+for (lambda in lambda_list) {
+  lambda <- 10**lambda
+  param_lambda <- fdPar(base_bspline,
+                        2,
+                        lambda)
+  fd_smoothfatiga <- smooth.basis(argvals = seq(1,
+                                          nrow(matrix_data)),
+                            y = matrix_data,
+                            fdParobj = param_lambda)
+  gcv <- c(gcv, sum(fd_smoothfatiga$gcv))
+}
+# Se esta tomando como criterio total la suma de las VC de todas las curvas
+plotgcv <-
+  data.frame(log_lambda = lambda_list,
+             gcv = gcv) %>% ggplot(aes(x = log_lambda, y = gcv)) +
+  geom_line(color = "purple", linetype = "dashed") +
+  theme_light() +
+  scale_x_continuous(limits = c(0, 4))
+plotly::ggplotly(plotgcv)
+selected_lamdba <- 10**lambda_list[which.min(gcv)]
+print(selected_lamdba)
+print(log(selected_lamdba, 10))
+# entrega el valor de lambda donde se minimiza la suma de VC y log de lambda
+
+# Suavizamiento con el lambda elegido
+param_lambda <- fdPar(base_bspline,
+                      2,
+                      lambda = selected_lamdba)
+
+fd_smoothfatiga <- smooth.basis(argvals = seq(1,
+                                        nrow(matrix_data)),
+                          y = matrix_data,
+                          fdParobj = param_lambda)
+plot(fd_smoothfatiga, xlab= "Pixel", ylab = "Intensidad Totas Las Imagenes")
+
+
+# una curva por cada foto
+
+# Comparación de curvas originales y suavizadas
+fd_fittedfatiga <- fitted(fd_smoothfatiga)
+plot(imagenfatigaxey[,1],type = "o",xlab="Pixel",ylab="Intensidad Ent1")
+lines(fd_fittedfatiga[,1],col="2")
+plot(imagenfatigaxey[,401],type = "o",xlab="Pixel",ylab="Intensidad Ent2")
+lines(fd_fittedfatiga[,401],col="2")
+plot(imagenfatigaxey[,801],type = "o",xlab="Pixel",ylab="Intensidad Ent3")
+lines(fd_fittedfatiga[,801],col="2")
+plot(imagenfatigaxey[,1201],type = "o",xlab="Pixel",ylab="Intensidad Ent4")
+lines(fd_fittedfatiga[,1201],col="2")
+plot(imagenfatigaxey[,1601],type = "o",xlab="Pixel",ylab="Intensidad Ent5")
+lines(fd_fittedfatiga[,1601],col="2")
+plot(imagenfatigaxey[,2001],type = "o",xlab="Pixel",ylab="Intensidad Ent6")
+lines(fd_fittedfatiga[,2001],col="2")
+plot(imagenfatigaxey[,2401],type = "o",xlab="Pixel",ylab="Intensidad Ent7")
+lines(fd_fittedfatiga[,2401],col="2")
+plot(imagenfatigaxey[,2801],type = "o",xlab="Pixel",ylab="Intensidad Ens1")
+lines(fd_fittedfatiga[,2801],col="2")
+plot(imagenfatigaxey[,3201],type = "o",xlab="Pixel",ylab="Intensidad Ens2")
+lines(fd_fittedfatiga[,3201],col="2")
+plot(imagenfatigaxey[,3601],type = "o",xlab="Pixel",ylab="Intensidad Ens3")
+lines(fd_fittedfatiga[,3601],col="2")
+```
+
+
+# 3.1 Función de varianza imagen fatiga
+
+Para ello se usa la función var.fd. En este caso se divide el recorrido en 200 puntos (igual que los pixeles).
+
+Se calcula el operador de los datos de entrenamiento como conjunto y el de cada imagen de ensayo por separado.
+
+```{r}
+var_fdfatigaEnt <- var.fd(fd_smoothfatiga$fd[1:2800])
+var_fdfatigaEns1 <- var.fd(fd_smoothfatiga$fd[2801:3200])
+var_fdfatigaEns2 <- var.fd(fd_smoothfatiga$fd[3201:3600])
+var_fdfatigaEns3 <- var.fd(fd_smoothfatiga$fd[3601:4000])
+# Calcula la varianza del objeto funcional de cada imagen
+# La salida es un objeto bivariado funcional
+# Necesita dos bases una para cada eje
+
+eva <- seq(1, npuntos, length = 200)
+matriz_var_fatigaEnt <- eval.bifd(eva, eva, var_fdfatigaEnt)
+matriz_var_fatigaEns1 <- eval.bifd(eva, eva, var_fdfatigaEns1)
+matriz_var_fatigaEns2 <- eval.bifd(eva, eva, var_fdfatigaEns2)
+matriz_var_fatigaEns3 <- eval.bifd(eva, eva, var_fdfatigaEns3)
+```
+
+# 4. Distancias imagenes ductiles de ensayo a cada grupo
+
+Adjudica dos imagenes a fatiga y una a dúctil. 33% de Acierto.
+```{r}
+distcov(matriz_var_ductilEnt, matriz_var_ductilEns1, method="Procrustes")
+distcov(matriz_var_fragilEnt, matriz_var_ductilEns1, method="Procrustes")
+distcov(matriz_var_fatigaEnt, matriz_var_ductilEns1, method="Procrustes")
+
+distcov(matriz_var_ductilEnt, matriz_var_ductilEns2, method="Procrustes")
+distcov(matriz_var_fragilEnt, matriz_var_ductilEns2, method="Procrustes")
+distcov(matriz_var_fatigaEnt, matriz_var_ductilEns2, method="Procrustes")
+
+distcov(matriz_var_ductilEnt, matriz_var_ductilEns3, method="Procrustes")
+distcov(matriz_var_fragilEnt, matriz_var_ductilEns3, method="Procrustes")
+distcov(matriz_var_fatigaEnt, matriz_var_ductilEns3, method="Procrustes")
+```
+
+# 5. Distancias imagenes fragiles de ensayo a cada grupo
+
+Adjudica las imagenes a frágil. 100% de Aciertos.
+```{r}
+distcov(matriz_var_ductilEnt, matriz_var_fragilEns1, method="Procrustes")
+distcov(matriz_var_fragilEnt, matriz_var_fragilEns1, method="Procrustes")
+distcov(matriz_var_fatigaEnt, matriz_var_fragilEns1, method="Procrustes")
+
+distcov(matriz_var_ductilEnt, matriz_var_fragilEns2, method="Procrustes")
+distcov(matriz_var_fragilEnt, matriz_var_fragilEns2, method="Procrustes")
+distcov(matriz_var_fatigaEnt, matriz_var_fragilEns2, method="Procrustes")
+
+distcov(matriz_var_ductilEnt, matriz_var_fragilEns3, method="Procrustes")
+distcov(matriz_var_fragilEnt, matriz_var_fragilEns3, method="Procrustes")
+distcov(matriz_var_fatigaEnt, matriz_var_fragilEns3, method="Procrustes")
+```
+
+# 6. Distancias imagenes fatiga de ensayo a cada grupo
+
+Adjudica tres imagenes a fatiga. 100% de Aciertos.
+```{r}
+distcov(matriz_var_ductilEnt, matriz_var_fatigaEns1, method="Procrustes")
+distcov(matriz_var_fragilEnt, matriz_var_fatigaEns1, method="Procrustes")
+distcov(matriz_var_fatigaEnt, matriz_var_fatigaEns1, method="Procrustes")
+
+distcov(matriz_var_ductilEnt, matriz_var_fatigaEns2, method="Procrustes")
+distcov(matriz_var_fragilEnt, matriz_var_fatigaEns2, method="Procrustes")
+distcov(matriz_var_fatigaEnt, matriz_var_fatigaEns2, method="Procrustes")
+
+distcov(matriz_var_ductilEnt, matriz_var_fatigaEns3, method="Procrustes")
+distcov(matriz_var_fragilEnt, matriz_var_fatigaEns3, method="Procrustes")
+distcov(matriz_var_fatigaEnt, matriz_var_fatigaEns3, method="Procrustes")
+```
+
+En conjunto se tiene una fracción de acierto de 0.7777. La falta de acierto se dio en dos imagenes dúctiles que se clasificaron como fatiga, sin embargo en la segunda opción de clasificación se adjudican a dúctil, Lo anterior se debe al importante traslape entre fatiga y dúctil de acuerdo a las gráficas de score en los componentes principales.
